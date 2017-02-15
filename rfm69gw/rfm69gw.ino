@@ -44,7 +44,7 @@
 #include <PubSubClient.h>
 
 
-
+uint32_t reachableNode = 0xFFFFFFFF;
 char RadioConfig[128];
 
 // Default values
@@ -756,20 +756,9 @@ void radio_loop(void) {
 // published.
 // #define MQTT_MAX_PACKET_SIZE 256
 
-
-
-void callback(char* topic, byte* payload, unsigned int length) {
-	
-
-	uint8_t nodeAdress;
-	Serial.print("Message arrived [");
-	Serial.print(topic);
-	Serial.print("] ");
-	for (unsigned int i = 0; i < length; i++) {
-		Serial.print((char)payload[i]);
-	}
-	Serial.println();
-
+uint8_t getNodeId(char *topic){
+    
+    //get the Node Address of the top eg. bla/bla/123 -> returns int8 123
 	char parts[15][20];
 	char *p_start, *p_end;
 	uint8_t i = 0;
@@ -788,30 +777,40 @@ void callback(char* topic, byte* payload, unsigned int length) {
 			break;
 		}
 	}
+    
+    return atoi(parts[i]);
+    
+}
 
-	nodeAdress=atoi(parts[i]);
+
+void callback(char* topic, byte* payload, unsigned int length) {
+	
+
+	uint8_t nodeAdress;
+	Serial.print("Message arrived [");
+	Serial.print(topic);
+	Serial.print("] ");
+	for (unsigned int i = 0; i < length; i++) {
+		Serial.print((char)payload[i]);
+	}
+	Serial.println();
+
+	nodeAdress = getNodeId(topic);
+    
 	Serial.print("Nodeadress: ");
 	Serial.println(nodeAdress);
 
-	if ((nodeAdress != 0) && (length > 0)){
-		/*
-		// TBD send message to RFM node
-		if (radio.sendWithRetry(nodeAdress, payload, length)) {
-			Serial.println("Message sended to Node");
-		}else{
-			Serial.println("Error sending Message to Node");
-			mqttClient.publish("rfmIn", "Error sending Message to Node: ");
-			mqttClient.publish("rfmIn", topic);
-		}
-		*/
+	if ((nodeAdress != 0) && (length > 0) && ((reachableNode |= (1<<nodeAdress)) != 0)){
 		if (!radio.sendWithRetry(nodeAdress, payload, length)){
 			//Wir konnten nicht senden-> wir warten und probieren es noch einmal
-			delay(millis()/150);
+			delay(150);
 			if (!radio.sendWithRetry(nodeAdress, payload, length)){
 				//Ein Fehler ist aufgetreten wir merken uns den Bufferinhalt
 				Serial.println("Error sending Message to Node");
-				mqttClient.publish("rfmIn", "Error sending Message to Node: ");
-				mqttClient.publish("rfmIn", topic);
+                char temp[50] ="\"Error\":\"sending Message to Node ";
+                strncat(temp, topic,15);
+                strncat(temp, "\"", 1);
+				mqttClient.publish("rfmIn", temp);
 			}else{
 				//send 0 Byte retained Message to delete retained messages
 				mqttClient.publish(topic, "", true);
@@ -963,11 +962,16 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
   
 	//subscribe the topic of the Node to get retained messages from Broker -> Node (sleeping Nodes) sw
 	snprintf(nodeRx_topic, sizeof(nodeRx_topic), "rfmOut/%d/%d", pGC->networkid, senderId); //Broker -> Node
+    uint8_t nodeId = getNodeId(nodeRx_topic);
 	if (message[0] == 17){
 		//mqttClient.publish("rfmIn", "subscribed Node");
+        //remember if node is subscribed
+        reachableNode |= (1<<nodeId);
 		mqttClient.subscribe(nodeRx_topic);
 	}else if (message[0] == 18){
 		//mqttClient.publish("rfmIn", "unsubscribed Node");
+        //remember if node is unsubscribed
+        reachableNode &= ~(1<<nodeId);
 		mqttClient.unsubscribe(nodeRx_topic);
 	}else{
 		//Serial.printf("topic [%s] message [%s]\r\n", topic, payload);
