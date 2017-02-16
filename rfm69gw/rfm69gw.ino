@@ -800,7 +800,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 	Serial.print("Nodeadress: ");
 	Serial.println(nodeAdress);
 
-	if ((nodeAdress != 0) && (length > 0) && ((reachableNode |= (1<<nodeAdress)) != 0)){
+	if ((nodeAdress != 0) && (length > 0) && (reachableNode & (1<<nodeAdress))){
 		if (!radio.sendWithRetry(nodeAdress, payload, length)){
 			//Wir konnten nicht senden-> wir warten und probieren es noch einmal
 			delay(150);
