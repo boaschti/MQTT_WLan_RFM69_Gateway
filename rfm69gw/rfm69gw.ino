@@ -44,7 +44,8 @@
 #include <PubSubClient.h>
 
 
-uint32_t reachableNode = 0xFFFFFFFF;
+uint32_t reachableNode[8];
+
 char RadioConfig[128];
 
 // Default values
@@ -800,14 +801,18 @@ void callback(char* topic, byte* payload, unsigned int length) {
 	Serial.print("Nodeadress: ");
 	Serial.println(nodeAdress);
 
-	if ((nodeAdress != 0) && (length > 0) && (reachableNode & (1<<nodeAdress))){
+    uint8_t varNumber = nodeAdress / 32;
+    uint8_t bitNumber = varNumber * 32;
+    bitNumber = nodeAdress - bitNumber;
+    
+	if ((nodeAdress != 0) && (length > 0) && (reachableNode[varNumber] & (1<<bitNumber))){
 		if (!radio.sendWithRetry(nodeAdress, payload, length)){
 			//Wir konnten nicht senden-> wir warten und probieren es noch einmal
 			delay(150);
 			if (!radio.sendWithRetry(nodeAdress, payload, length)){
-				//Ein Fehler ist aufgetreten wir merken uns den Bufferinhalt
+				//
 				Serial.println("Error sending Message to Node");
-                char temp[50] ="\"Error\":\"sending Message to Node ";
+                char temp[50] ="\"err\":\"sending Message to Node ";
                 strncat(temp, topic,15);
                 strncat(temp, "\"", 1);
 				mqttClient.publish("rfmIn", temp);
@@ -962,16 +967,19 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
   
 	//subscribe the topic of the Node to get retained messages from Broker -> Node (sleeping Nodes) sw
 	snprintf(nodeRx_topic, sizeof(nodeRx_topic), "rfmOut/%d/%d", pGC->networkid, senderId); //Broker -> Node
-    uint8_t nodeId = getNodeId(nodeRx_topic);
+    uint8_t nodeAdress = getNodeId(nodeRx_topic);
+    uint8_t varNumber = nodeAdress / 32;
+    uint8_t bitNumber = varNumber * 32;
+    bitNumber = nodeAdress - bitNumber;
 	if (message[0] == 17){
 		//mqttClient.publish("rfmIn", "subscribed Node");
         //remember if node is subscribed
-        reachableNode |= (1<<nodeId);
+        reachableNode[varNumber] |= (1<<bitNumber);
 		mqttClient.subscribe(nodeRx_topic);
 	}else if (message[0] == 18){
 		//mqttClient.publish("rfmIn", "unsubscribed Node");
         //remember if node is unsubscribed
-        reachableNode &= ~(1<<nodeId);
+        reachableNode[varNumber] &= ~(1<<bitNumber);
 		mqttClient.unsubscribe(nodeRx_topic);
 	}else{
 		//Serial.printf("topic [%s] message [%s]\r\n", topic, payload);
@@ -1026,6 +1034,15 @@ void setup() {
 	delay(500);//sw
 	digitalWrite(Led_user, 0);//sw
 	
+    reachableNode[0] = 0xFFFFFFFF;
+    reachableNode[1] = 0xFFFFFFFF;
+    reachableNode[2] = 0xFFFFFFFF;
+    reachableNode[3] = 0xFFFFFFFF;
+    reachableNode[4] = 0xFFFFFFFF;
+    reachableNode[5] = 0xFFFFFFFF;
+    reachableNode[6] = 0xFFFFFFFF;
+    reachableNode[7] = 0xFFFFFFFF;
+    
 	//GPF12 = 48;
 	//GPF13 = 48;
 	//GPF14 = 48;
