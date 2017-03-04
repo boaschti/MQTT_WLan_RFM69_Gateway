@@ -779,7 +779,7 @@ uint8_t getNodeId(char *topic){
 		}
 	}
     
-    return atoi(parts[i]);
+    return atoi(parts[i-1]);
     
 }
 
@@ -812,8 +812,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
 			if (!radio.sendWithRetry(nodeAdress, payload, length)){
 				//
 				Serial.println("Error sending Message to Node");
-                char temp[50] ="\"err\":\"sending Message to Node ";
-                strncat(temp, topic,15);
+                char temp[60] ="\"err\":\"sending Message to Node ";
+                strncat(temp, topic,25);
                 strncat(temp, "\"", 1);
 				mqttClient.publish("rfmIn", temp);
 			}else{
@@ -966,7 +966,7 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
   }
   
 	//subscribe the topic of the Node to get retained messages from Broker -> Node (sleeping Nodes) sw
-	snprintf(nodeRx_topic, sizeof(nodeRx_topic), "rfmOut/%d/%d", pGC->networkid, senderId); //Broker -> Node
+	snprintf(nodeRx_topic, sizeof(nodeRx_topic), "rfmOut/%d/%d/#", pGC->networkid, senderId); //Broker -> Node
     uint8_t nodeAdress = getNodeId(nodeRx_topic);
     uint8_t varNumber = nodeAdress / 32;
     uint8_t bitNumber = varNumber * 32;
