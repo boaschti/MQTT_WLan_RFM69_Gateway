@@ -812,9 +812,13 @@ void callback(char* topic, byte* payload, unsigned int length) {
 			if (!radio.sendWithRetry(nodeAdress, payload, length)){
 				//
 				Serial.println("Error sending Message to Node");
-                char temp[60] ="\"err\":\"sending Message to Node ";
+                char temp[90] ="\"err\":\"sending Message from Topic ";
                 strncat(temp, topic,25);
-                strncat(temp, "\"", 1);
+                strncat(temp, " to Node ", 10);
+                char temp2[5];
+                itoa(nodeAdress, temp2, 10);
+                strncat(temp, temp2, 4);
+                strncat(temp, "\"",3);
 				mqttClient.publish("rfmIn", temp);
 			}else{
 				//send 0 Byte retained Message to delete retained messages
