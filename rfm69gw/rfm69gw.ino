@@ -32,6 +32,7 @@
 // Required Modifications:
 // 1. PubSubClient.h #define MQTT_MAX_PACKET_SIZE 256
 // UpdateName, UpdatePw,
+// setup Gateway IP: 192.168.4.1
 
 
 
@@ -127,11 +128,12 @@ void wifi_setup(void) {
   //if it does not connect it starts an access point with the specified name
   //here  "AutoConnectAP"
   //and goes into a blocking loop awaiting configuration
-  if(!wifiManager.autoConnect(pGC->rfmapname)) {
-    Serial.println("failed to connect and hit timeout");
-    //reset and try again, or maybe put it to deep sleep
-    ESP.reset();
-    delay(1000);
+  
+  uint32_t blocking = wifiManager.autoConnect(pGC->rfmapname);
+  
+  while(!blocking) {
+    delay(20000);
+    wifiManager.autoConnect(pGC->rfmapname);
   }
 
   Serial.println("connected");
