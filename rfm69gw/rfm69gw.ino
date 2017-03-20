@@ -68,7 +68,7 @@ const char PROGMEM RFM69AP_NAME[] = "RFM69-AP";
 //#define FREQUENCY      RF69_915MHZ
 #define IS_RFM69HCW		false // set to 'true' if you are using an RFM69HCW module
 #define POWER_LEVEL		31
-#define showKeyInWeb	true
+#define showKeysInWeb	false
 #define Led_user		0//sw
 
 WiFiClient espClient;
@@ -458,13 +458,23 @@ void handleconfiguregwrfm69()
     Serial.println("formFinal malloc failed");
     return;
   }
-  snprintf_P(formFinal, formFinal_len, CONFIGUREGWRFM69_HTML,
-      pGC->networkid, pGC->nodeid, pGC->encryptkey, GC_POWER_LEVEL,
-      SELECTED_FREQ(RF69_315MHZ), SELECTED_FREQ(RF69_433MHZ),
-      SELECTED_FREQ(RF69_868MHZ), SELECTED_FREQ(RF69_915MHZ),
-      (GC_IS_RFM69HCW)?"checked":"", (GC_IS_RFM69HCW)?"":"checked",
-      pGC->rfmapname
-      );
+  #if showKeysInWeb == true
+      snprintf_P(formFinal, formFinal_len, CONFIGUREGWRFM69_HTML,
+          pGC->networkid, pGC->nodeid,  pGC->encryptkey, GC_POWER_LEVEL,
+          SELECTED_FREQ(RF69_315MHZ), SELECTED_FREQ(RF69_433MHZ),
+          SELECTED_FREQ(RF69_868MHZ), SELECTED_FREQ(RF69_915MHZ),
+          (GC_IS_RFM69HCW)?"checked":"", (GC_IS_RFM69HCW)?"":"checked",
+          pGC->rfmapname
+          );
+  #else
+      snprintf_P(formFinal, formFinal_len, CONFIGUREGWRFM69_HTML,
+          pGC->networkid, pGC->nodeid, "xxx", GC_POWER_LEVEL,
+          SELECTED_FREQ(RF69_315MHZ), SELECTED_FREQ(RF69_433MHZ),
+          SELECTED_FREQ(RF69_868MHZ), SELECTED_FREQ(RF69_915MHZ),
+          (GC_IS_RFM69HCW)?"checked":"", (GC_IS_RFM69HCW)?"":"checked",
+          pGC->rfmapname
+          );
+  #endif
   webServer.send(200, "text/html", formFinal);
   free(formFinal);
 }
@@ -544,9 +554,15 @@ void handleconfiguregwmqtt()
   size_t formFinal_len = strlen_P(CONFIGUREGWMQTT_HTML) + sizeof(*pGC);
   char *formFinal = (char *)malloc(formFinal_len);
   if (formFinal == NULL) {}
-  snprintf_P(formFinal, formFinal_len, CONFIGUREGWMQTT_HTML,
-      pGC->mqttbroker, pGC->mqttclientname, pGC->mdnsname
-      );
+  #if showKeysInWeb == true
+    snprintf_P(formFinal, formFinal_len, CONFIGUREGWMQTT_HTML,
+        pGC->mqttbroker, pGC->mqttclientname, pGC->mdnsname
+        );
+  #else
+    snprintf_P(formFinal, formFinal_len, CONFIGUREGWMQTT_HTML,
+        "xxx", pGC->mqttclientname, pGC->mdnsname
+        );
+  #endif
   webServer.send(200, "text/html", formFinal);
   free(formFinal);
 }
@@ -567,6 +583,9 @@ void handleconfiguregwmqttWrite()
       if (strcmp(broker, pGC->mqttbroker) != 0) {
         commit_required = true;
         strcpy(pGC->mqttbroker, broker);
+        #if showKeysInWeb == true
+          strcpy_P(pGC->encryptkey, ENCRYPTKEY);
+        #endif
       }
     }
     else if (argNamei == "mqttclientname") {
