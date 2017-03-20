@@ -928,9 +928,10 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
   }
   unsigned long sequenceChange, newMessageSequence;
   static const char PROGMEM JSONtemplate[] =
-	R"({"msgType":"status","rxMsgCnt":%lu,"rxMsgMiss":%lu,"rxMsgDup":%lu,"senderId":%d,"rssi":%d,%s})";
+	R"({"rxMsgCnt":%lu,"rxMsgMiss":%lu,"rxMsgDup":%lu,"rssi":%d})";
     //R"({"msgType":"status","rxMsgCnt":%lu,"rxMsgMiss":%lu,"rxMsgDup":%lu,"senderId":%d,"rssi":%d,"message":"%s"})";
-  char payload[192], topic[32];
+  char payload[192], topic[32], hash[10], pubPayload[50];
+  char infoPayload[192], infoTopic[32];
 
   //Serial.printf("\r\nnode %d msg %s\r\n", senderId, message);
   newMessageSequence = strtoul(message, NULL, 10);
@@ -972,46 +973,99 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
   //   "rssi": -30,
   //   "message": "Hello World #1234"
   // }
-  size_t len = snprintf_P(payload, sizeof(payload), JSONtemplate,
+    size_t len = snprintf_P(infoPayload, sizeof(infoPayload), JSONtemplate,
       ns->recvMessageCount, ns->recvMessageMissing,
-      ns->recvMessageDuplicate, senderId, rssi, message);
-  if (len >= sizeof(payload)) {
-    Serial.println("\n\n*** RFM69 packet truncated ***\n");
-  }
-  // send received message to all connected web clients
-  webSocket.broadcastTXT(payload, strlen(payload));
+      ns->recvMessageDuplicate, rssi);
+    len = snprintf(infoTopic, sizeof(infoTopic), "rfmIn/%d/%d/rxInfo", pGC->networkid, senderId); //Node -> Broker //sw      
+      
+      
+    if (len >= sizeof(payload)) {
+        Serial.println("\n\n*** RFM69 packet truncated ***\n");
+    }
+    // send received message to all connected web clients
+    webSocket.broadcastTXT(payload, strlen(payload));
 
-  // mqtt publish the same message
-  len = snprintf(topic, sizeof(topic), "rfmIn/%d/%d", pGC->networkid, senderId); //Node -> Broker //sw
-  if (len >= sizeof(topic)) {
-    Serial.println("\n\n*** MQTT topic truncated ***\n");
-  }
-  if ((strlen(payload)+1+strlen(topic)+1) > MQTT_MAX_PACKET_SIZE) {
-    Serial.println("\n\n*** MQTT message too long! ***\n");
-  }
-  
 	//subscribe the topic of the Node to get retained messages from Broker -> Node (sleeping Nodes) sw
 	snprintf(nodeRx_topic, sizeof(nodeRx_topic), "rfmOut/%d/%d/#", pGC->networkid, senderId); //Broker -> Node
+
     uint8_t nodeAdress = getNodeId(nodeRx_topic);
     uint8_t varNumber = nodeAdress / 32;
     uint8_t bitNumber = varNumber * 32;
     bitNumber = nodeAdress - bitNumber;
-	if (message[0] == 17){
-		//mqttClient.publish("rfmIn", "subscribed Node");
+    
+    if (message[0] == 17){
+        //mqttClient.publish("rfmIn", "subscribed Node");
         //remember if node is subscribed
         reachableNode[varNumber] |= (1<<bitNumber);
-		mqttClient.subscribe(nodeRx_topic);
-	}else if (message[0] == 18){
-		//mqttClient.publish("rfmIn", "unsubscribed Node");
+        mqttClient.subscribe(nodeRx_topic);
+    }else if (message[0] == 18){
+        //mqttClient.publish("rfmIn", "unsubscribed Node");
         //remember if node is unsubscribed
         reachableNode[varNumber] &= ~(1<<bitNumber);
-		mqttClient.unsubscribe(nodeRx_topic);
-	}else{
-		//Serial.printf("topic [%s] message [%s]\r\n", topic, payload);
-		if (!mqttClient.publish(topic, payload)) {
-			Serial.println("\n\n*** mqtt publish failed ***\n");
-		}
-	}
+        mqttClient.unsubscribe(nodeRx_topic);
+    }else{
+        //char parts[15][10];
+        mqttClient.publish("debug", message);
+        const char *p_start, *p_end;
+        uint8_t messageLen = strlen(message);
+        p_start = message;
+        // Message str input example: "R_12":"125"
+        //a message like: "R_12":"125", "g_13":"243" will be publisched on Topic: rfmIn/networkid/nodeid/R_12 Payload: {"R_12":"125"} and on Topic: rfmIn/networkid/nodeid/g_13 Payload: {"g_13":"243"}
+        for (uint8_t i =0; i < 10; i++) {
+            //mqttClient.publish("debug", "AA");
+            //mqttClient.publish("debug", p_start);
+            p_end = strchr(p_start, '/"');          //search first " to set pointer
+            if (p_end) {		
+                //mqttClient.publish("debug", "AB");
+                p_start = p_end;
+            }else{
+                //mqttClient.publish("debug", "AC");
+                break;
+            }
+            //mqttClient.publish("debug", "A");
+            p_end = strchr(p_start+1, '/"');          //search second " to set pointer
+            if (p_end) {							//copy R_12
+                strncpy(hash, p_start+1, p_end-p_start-1);
+                hash[p_end-p_start-1] = 0;
+            }
+            //mqttClient.publish("debug", "B");
+            p_end = strchr(p_start, ',');          //search second " to set pointer
+            if (p_end) {							//copy "R_12":"125"
+                //mqttClient.publish("debug", "C");
+                strcpy(pubPayload, "{");
+                strncat(pubPayload, p_start, p_end-p_start);
+                strncat(pubPayload, "}", 1);
+                pubPayload[p_end-p_start+2] = 0;
+                p_start = p_end;
+            }else{
+                //mqttClient.publish("debug", "D");
+                strcpy(pubPayload, "{");
+                strncat(pubPayload, p_start, 50);
+                strncat(pubPayload, "}", 1);
+                pubPayload[p_end-p_start+2] = 0;
+                i = 20;
+                p_start = p_end - 1;
+            }
+
+            //mqttClient.publish("debug", "E");
+            // mqtt publish the same message
+            len = snprintf(topic, sizeof(topic), "rfmIn/%d/%d/%s", pGC->networkid, senderId, hash); //Node -> Broker //sw
+            if (len >= sizeof(topic)) {
+                Serial.println("\n\n*** MQTT topic truncated ***\n");
+            }
+            if ((strlen(payload)+1+strlen(topic)+1) > MQTT_MAX_PACKET_SIZE) {
+                Serial.println("\n\n*** MQTT message too long! ***\n");
+            }                    
+            if (!mqttClient.publish(topic, pubPayload, true)) {
+                Serial.println("\n\n*** mqtt publish failed ***\n");
+            }       
+        }
+        //Serial.printf("topic [%s] message [%s]\r\n", topic, payload);
+        //mqttClient.publish("debug", "F");
+        if (!mqttClient.publish(infoTopic, infoPayload, true)) {
+            Serial.println("\n\n*** mqtt publish rxInfo failed ***\n");
+        }        
+    }
 }
 
 void setup() {
