@@ -31,8 +31,10 @@
 // **********************************************************************************/
 // Required Modifications:
 // 1. PubSubClient.h #define MQTT_MAX_PACKET_SIZE 256
+// 2. add delay(1); in line 244 in RFM69.cpp to reset watchdog
 // UpdateName, UpdatePw,
 // setup Gateway IP: 192.168.4.1
+
 
 
 
@@ -758,12 +760,11 @@ void radio_loop(void) {
       radio.sendACK();
     }
     radio.receiveDone(); //put radio in RX mode
-	digitalWrite(Led_user, 1);
-	updateClients(senderId, rssi, (const char *)data);
-	digitalWrite(Led_user, 0);
-   }
-   else {
-	 radio.receiveDone(); //put radio in RX mode
+    digitalWrite(Led_user, 1);
+    updateClients(senderId, rssi, (const char *)data);
+    digitalWrite(Led_user, 0);
+  }else{
+    radio.receiveDone(); //put radio in RX mode
   }
 }
 
@@ -827,9 +828,11 @@ void callback(char* topic, byte* payload, unsigned int length) {
     bitNumber = nodeAdress - bitNumber;
     
 	if ((nodeAdress != 0) && (length > 0) && (reachableNode[varNumber] & (1<<bitNumber))){
+    Serial.println("Thinking node is reachable");
 		if (!radio.sendWithRetry(nodeAdress, payload, length)){
 			//Wir konnten nicht senden-> wir warten und probieren es noch einmal
 			delay(150);
+      Serial.println("Try again");
 			if (!radio.sendWithRetry(nodeAdress, payload, length)){
 				//
 				Serial.println("Error sending Message to Node");
@@ -1004,8 +1007,6 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
         reachableNode[varNumber] &= ~(1<<bitNumber);
         mqttClient.unsubscribe(nodeRx_topic);
     }else{
-        //char parts[15][10];
-        mqttClient.publish("debug", message);
         const char *p_start, *p_end;
         uint8_t messageLen = strlen(message);
         p_start = message;
@@ -1029,7 +1030,7 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
                 hash[p_end-p_start-1] = 0;
             }
             //mqttClient.publish("debug", "B");
-            p_end = strchr(p_start, ',');          //search second " to set pointer
+            p_end = strchr(p_start, ',');          //search , to set pointer
             if (p_end) {							//copy "R_12":"125"
                 //mqttClient.publish("debug", "C");
                 strcpy(pubPayload, "{");
@@ -1040,7 +1041,7 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
             }else{
                 //mqttClient.publish("debug", "D");
                 strcpy(pubPayload, "{");
-                strncat(pubPayload, p_start, 50);
+                strncat(pubPayload, p_start, sizeof(pubPayload) - 2);
                 strncat(pubPayload, "}", 1);
                 pubPayload[p_end-p_start+2] = 0;
                 i = 20;
@@ -1134,6 +1135,7 @@ void setup() {
 	//Serial.print(" GPF15: ");
 	//Serial.print(GPF15);
 	//Serial.println("");
+	Serial.println("setup_finished");//sw
 }
 
 void loop() {
