@@ -32,7 +32,6 @@
 // Required Modifications:
 // 1. PubSubClient.h #define MQTT_MAX_PACKET_SIZE 256
 // 2. add delay(1); in line 244 in RFM69.cpp to reset watchdog
-// UpdateName, UpdatePw,
 // setup Gateway IP: 192.168.4.1
 
 
@@ -58,8 +57,10 @@ const char PROGMEM MQTT_BROKER[] = "raspberrypi";
 const char PROGMEM RFM69AP_NAME[] = "RFM69-AP";
 //Passwort und Benutzer zum Softwareupdate ueber Browser
 
-#define UpdateName		"B"//sw
-#define UpdatePw		"B"//sw
+const char PROGMEM UPDATEUSER[]		  = "B";//sw
+const char PROGMEM UPDATEPASSWORD[] =	"B";//sw
+const char PROGMEM MQTTPASSWORD[]   = "B";
+const char PROGMEM MQTTUSER[]   = "B";
 
 #define NETWORKID		200  //the same on all nodes that talk to each other
 #define NODEID			1
@@ -72,6 +73,8 @@ const char PROGMEM RFM69AP_NAME[] = "RFM69-AP";
 #define POWER_LEVEL		31
 #define showKeysInWeb	false
 #define Led_user		0//sw
+
+#define HiddenString "xxx"
 
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
@@ -93,8 +96,12 @@ struct _GLOBAL_CONFIG {
   char        encryptkey[16+1];
   uint8_t     networkid;
   uint8_t     nodeid;
-  uint8_t     powerlevel; // bits 0..4 power leve, bit 7 RFM69HCW 1=true
+  uint8_t     powerlevel; // bits 0..4 power level, bit 7 RFM69HCW 1=true
   uint8_t     rfmfrequency;
+  char        updateUser[20];
+  char        updatePassword[20];
+  char        mqttPassword[20];
+  char        mqttUser[20];  
 };
 
 #define GC_POWER_LEVEL    (pGC->powerlevel & 0x1F)
@@ -159,31 +166,36 @@ void eeprom_setup() {
   pGC = (struct _GLOBAL_CONFIG *)EEPROM.getDataPtr();
   // if checksum bad init GC else use GC values
   if (gc_checksum() != pGC->checksum) {
-    Serial.println("Factory reset");
-    memset(pGC, 0, sizeof(*pGC));
-	Serial.println("ENCRYPTKEY");
-    strcpy_P(pGC->encryptkey, ENCRYPTKEY);
-	Serial.println("RFM69AP_NAME");
-    strcpy_P(pGC->rfmapname, RFM69AP_NAME);
-	Serial.println("MQTT_BROKER");
-    strcpy_P(pGC->mqttbroker, MQTT_BROKER);
-	Serial.println("MDNS_NAME");
-    strcpy_P(pGC->mdnsname, MDNS_NAME);
-	Serial.println("mqttclientname");
-	//bei der folgenden Zeile haengt sich der Chip auf: Exception (28)
-    //strcpy(pGC->mqttclientname, WiFi.hostname().c_str());
-	Serial.println("NETWORKID");
-    pGC->networkid = NETWORKID;
-	Serial.println("NODEID");
-    pGC->nodeid = NODEID;
-	Serial.println("powerlevel");
-    pGC->powerlevel = ((IS_RFM69HCW)?0x80:0x00) | POWER_LEVEL;
-	Serial.println("rfmfrequency");
-    pGC->rfmfrequency = FREQUENCY;
-	Serial.println("checksum");
-    pGC->checksum = gc_checksum();
-	Serial.println("EEPROM.commit");
-    EEPROM.commit();
+      Serial.println("Factory reset");
+      memset(pGC, 0, sizeof(*pGC));
+      Serial.println("ENCRYPTKEY");
+      strcpy_P(pGC->encryptkey, ENCRYPTKEY);
+      Serial.println("RFM69AP_NAME");
+      strcpy_P(pGC->rfmapname, RFM69AP_NAME);
+      Serial.println("MQTT_BROKER");
+      strcpy_P(pGC->mqttbroker, MQTT_BROKER);
+      Serial.println("MDNS_NAME");
+      strcpy_P(pGC->mdnsname, MDNS_NAME);
+      Serial.println("mqttclientname");
+      //bei der folgenden Zeile haengt sich der Chip auf: Exception (28)
+      //strcpy(pGC->mqttclientname, WiFi.hostname().c_str());
+      Serial.println("NETWORKID");
+      pGC->networkid = NETWORKID;
+      Serial.println("NODEID");
+      pGC->nodeid = NODEID;
+      Serial.println("powerlevel");
+      pGC->powerlevel = ((IS_RFM69HCW)?0x80:0x00) | POWER_LEVEL;
+      Serial.println("rfmfrequency");
+      pGC->rfmfrequency = FREQUENCY;
+      Serial.println("UPDATEPW");
+      strncpy_P(pGC->updateUser, UPDATEUSER, 20);
+      strncpy_P(pGC->updatePassword, UPDATEPASSWORD, 20);    
+      strncpy_P(pGC->mqttUser, MQTTUSER, 20);
+      strncpy_P(pGC->mqttPassword, MQTTPASSWORD, 20);       
+      Serial.println("checksum");
+      pGC->checksum = gc_checksum();
+      Serial.println("EEPROM.commit");
+      EEPROM.commit();
   }
 }
 // ^^^^^^^^^ Global Configuration ^^^^^^^^^^^
@@ -303,7 +315,7 @@ static const char PROGMEM CONFIGUREGW_HTML[] = R"rawliteral(
 </head>
 <body>
   <h2>RFM69 Gateway Configuration</h2>
-  <a href="/configGWrfm69"><button type="button">RFM69</button></a>
+  <a href="/configGWrfm69"><button type="button">RFM69/GW</button></a>
   <p>
   <a href="/configGWmqtt"><button type="button">MQTT</button></a>
   <p>
@@ -345,6 +357,15 @@ static const char PROGMEM CONFIGUREGWRFM69_HTML[] = R"rawliteral(
     <input type='radio' name='rfm69hcw' id="hcw" value="0" %s> False<br>
     <label>RFM69 AP name</label>
     <input type='text' name='rfmapname' value="%s" size="32" maxlength="32"><br>
+    <label>Updater password</label><br>
+    <label>old user</label>
+    <input type='text' name='olduser' value="%s" size="20" maxlength="20"><br>
+    <label>old password</label>
+    <input type='text' name='oldpassword' value="%s" size="20" maxlength="20"><br>
+    <label>new user</label>
+    <input type='text' name='newuser' size="20" maxlength="20"><br>
+    <label>new password</label>
+    <input type='text' name='newpassword' size="20" maxlength="20"><br>
     <p><input type='submit' value='Save changes'>
   </form>
   <p><a href="/configGW"><button type="button">Cancel</button></a><a href="/configGWreset"><button type="button">Factory Reset</button></a>
@@ -369,8 +390,13 @@ static const char PROGMEM CONFIGUREGWMQTT_HTML[] = R"rawliteral(
     <input type='text' name='mqttbroker' value="%s" size="32" maxlength="32"><br>
     <label>MQTT client name</label>
     <input type='text' name='mqttclientname' value="%s" size="32" maxlength="32"><br>
+    <label>MQTT client user</label>
+    <input type='text' name='mqttclientuser' value="%s" size="32" maxlength="20"><br>
+    <label>MQTT client password</label>
+    <input type='text' name='mqttclientpassword' value="%s" size="32" maxlength="20"><br>
     <label>MDNS name</label>
     <input type='text' name='mdnsname' value="%s" size="32" maxlength="32"><br>
+    <label>note: if you have seen %s and changed MQTT broker then set RFM69 encrypt key again!</label>
     <p><input type='submit' value='Save changes'>
   </form>
   <p><a href="/configGW"><button type="button">Cancel</button></a>
@@ -837,15 +863,15 @@ void handleconfiguregwrfm69()
           SELECTED_FREQ(RF69_315MHZ), SELECTED_FREQ(RF69_433MHZ),
           SELECTED_FREQ(RF69_868MHZ), SELECTED_FREQ(RF69_915MHZ),
           (GC_IS_RFM69HCW)?"checked":"", (GC_IS_RFM69HCW)?"":"checked",
-          pGC->rfmapname
+          pGC->rfmapname, pGC->updateUser, pGC->updatePassword
           );
   #else
       snprintf_P(formFinal, formFinal_len, CONFIGUREGWRFM69_HTML,
-          pGC->networkid, pGC->nodeid, "xxx", GC_POWER_LEVEL,
+          pGC->networkid, pGC->nodeid, HiddenString, GC_POWER_LEVEL,
           SELECTED_FREQ(RF69_315MHZ), SELECTED_FREQ(RF69_433MHZ),
           SELECTED_FREQ(RF69_868MHZ), SELECTED_FREQ(RF69_915MHZ),
           (GC_IS_RFM69HCW)?"checked":"", (GC_IS_RFM69HCW)?"":"checked",
-          pGC->rfmapname
+          pGC->rfmapname, HiddenString, HiddenString
           );
   #endif
   webServer.send(200, "text/html", formFinal);
@@ -855,6 +881,8 @@ void handleconfiguregwrfm69()
 void handleconfiguregwrfm69Write()
 {
   bool commit_required = false;
+  bool oldPasswordSeen = false;
+  bool oldUserSeen = false;
   String argi, argNamei;
 
   for (uint8_t i=0; i<webServer.args(); i++) {
@@ -879,9 +907,11 @@ void handleconfiguregwrfm69Write()
     }
     else if (argNamei == "encryptkey") {
       const char *enckey = argi.c_str();
-      if (strcmp(enckey, pGC->encryptkey) != 0) {
-        commit_required = true;
-        strcpy(pGC->encryptkey, enckey);
+      if (strcmp(enckey, HiddenString) != 0){
+          if (strcmp(enckey, pGC->encryptkey) != 0) {
+              commit_required = true;
+              strcpy(pGC->encryptkey, enckey);
+          }
       }
     }
     else if (argNamei == "rfmapname") {
@@ -912,6 +942,40 @@ void handleconfiguregwrfm69Write()
         pGC->rfmfrequency = freq;
       }
     }
+    else if (argNamei == "olduser") {
+        const char *olduser = argi.c_str();
+        if (strcmp(olduser, HiddenString) != 0){
+            if (strcmp(olduser, pGC->updateUser) == 0) {
+                oldUserSeen = true;
+            }
+        }
+    }
+    else if (argNamei == "oldpassword") {
+        const char *oldpw = argi.c_str();
+        if (strcmp(oldpw, HiddenString) != 0){
+            if (strcmp(oldpw, pGC->updatePassword) == 0) {
+                oldPasswordSeen = true;
+            }
+        }
+    }
+    else if (argNamei == "newuser") {
+      const char *newusr = argi.c_str();
+        if ((strcmp(newusr, HiddenString) != 0) && oldPasswordSeen && oldUserSeen){
+            if (strcmp(newusr, pGC->updatePassword) != 0) {
+                commit_required = true;
+                strcpy(pGC->updateUser, newusr);
+            }
+        }
+    }
+    else if (argNamei == "newpassword") {
+      const char *newpw = argi.c_str();
+        if ((strcmp(newpw, HiddenString) != 0) && oldPasswordSeen && oldUserSeen){
+            if (strcmp(newpw, pGC->updatePassword) != 0) {
+                commit_required = true;
+                strcpy(pGC->updatePassword, newpw);
+            }
+        }
+    }
   }
   handleRoot();
   if (commit_required) {
@@ -929,11 +993,11 @@ void handleconfiguregwmqtt()
   if (formFinal == NULL) {}
   #if showKeysInWeb == true
     snprintf_P(formFinal, formFinal_len, CONFIGUREGWMQTT_HTML,
-        pGC->mqttbroker, pGC->mqttclientname, pGC->mdnsname
+        pGC->mqttbroker, pGC->mqttclientname, pGC->mqttUser, pGC->mqttPassword, pGC->mdnsname, HiddenString
         );
   #else
     snprintf_P(formFinal, formFinal_len, CONFIGUREGWMQTT_HTML,
-        "xxx", pGC->mqttclientname, pGC->mdnsname
+        HiddenString, pGC->mqttclientname,  HiddenString, HiddenString, pGC->mdnsname, HiddenString
         );
   #endif
   webServer.send(200, "text/html", formFinal);
@@ -952,14 +1016,17 @@ void handleconfiguregwmqttWrite()
     argi = webServer.arg(i);
     argNamei = webServer.argName(i);
     if (argNamei == "mqttbroker") {
-      const char *broker = argi.c_str();
-      if (strcmp(broker, pGC->mqttbroker) != 0) {
-        commit_required = true;
-        strcpy(pGC->mqttbroker, broker);
-        #if showKeysInWeb == true
-          strcpy_P(pGC->encryptkey, ENCRYPTKEY);
-        #endif
-      }
+        const char *broker = argi.c_str();
+        if (strcmp(broker, HiddenString) != 0){
+            if (strcmp(broker, pGC->mqttbroker) != 0) {
+                commit_required = true;
+                strcpy(pGC->mqttbroker, broker);
+                //Wenn der Key geaendert wird dann loeschn wiri auch den encrypt key
+                #if showKeysInWeb == false
+                    strcpy_P(pGC->encryptkey, ENCRYPTKEY);
+                #endif
+            }
+        }
     }
     else if (argNamei == "mqttclientname") {
       const char *client = argi.c_str();
@@ -975,7 +1042,26 @@ void handleconfiguregwmqttWrite()
         strcpy(pGC->mdnsname, mdns);
       }
     }
+    else if (argNamei == "mqttclientpassword"){
+        const char *pw = argi.c_str();
+        if (strcmp(pw, HiddenString) != 0){
+            if (strcmp(pw, pGC->mqttPassword) != 0){
+              commit_required = true;
+              strcpy(pGC->mqttPassword, pw);
+            }
+        }
+    }
+    else if (argNamei == "mqttclientuser"){
+        const char *user = argi.c_str();
+        if (strcmp(user, HiddenString) != 0){
+            if (strcmp(user, pGC->mqttUser) != 0){
+              commit_required = true;
+              strcpy(pGC->mqttUser, user);
+            }
+        }
+    }
   }
+  
   handleRoot();
   if (commit_required) {
     pGC->checksum = gc_checksum();
@@ -1073,7 +1159,7 @@ void websock_setup(void) {
 ESP8266HTTPUpdateServer httpUpdater;
 
 void ota_setup() {
-  httpUpdater.setup(&webServer, "/updater", UpdateName, UpdatePw);//sw
+  httpUpdater.setup(&webServer, "/updater", pGC->updateUser, pGC->updatePassword);//sw
 }
 
 // ^^^^^^^^^ ESP8266 Web OTA Updater ^^^^^^^^^^^
@@ -1309,7 +1395,7 @@ void reconnect() {
   //while (!mqttClient.connected()) {//sw
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (mqttClient.connect(WiFi.hostname().c_str())) {
+    if (mqttClient.connect(WiFi.hostname().c_str()), pGC->mqttUser, pGC->mqttPassword) {
       Serial.println("connected");
       // Once connected, publish an announcement...
       mqttClient.publish("rfmIn", "Gateway connected");
