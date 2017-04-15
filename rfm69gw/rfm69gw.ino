@@ -209,6 +209,7 @@ void mdns_setup(void) {
   Serial.println(WiFi.localIP());
 }
 
+
 static const char PROGMEM INDEX_HTML[] = R"rawliteral(
 <!DOCTYPE html>
 <html>
@@ -279,6 +280,9 @@ function start() {
 <div id="rfm69Status">Waiting for node data</div>
 <div id="configureGateway">
   <p><a href="/configGW"><button type="button">Configure Gateway</button></a>
+</div>
+<div id="configureNodes">
+  <p><a href="/configGWnode"><button type="button">Configure Nodes</button></a>
 </div>
 <div id="FirmwareUpdate">
   <p><a href="/updater"><button type="button">Update Gateway Firmware</button></a>
@@ -370,6 +374,373 @@ static const char PROGMEM CONFIGUREGWMQTT_HTML[] = R"rawliteral(
     <p><input type='submit' value='Save changes'>
   </form>
   <p><a href="/configGW"><button type="button">Cancel</button></a>
+</body>
+</html>
+)rawliteral";
+
+static const char PROGMEM SELECTNODE[] = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name = 'viewport' content = 'width = device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable=0'>
+  <title>RFM69 Node Configuration</title>
+  <style>
+    'body { background-color: #808080; font-family: Arial, Helvetica, Sans-Serif; Color: #000000; }'
+  </style>
+</head>
+<body>
+    <h3>RFM69 Node Configuration</h3>
+    <p><a href="/"><button type="button">Home</button></a>
+        <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+            <label>nodeId &nbsp</label>
+            <input type='number' name='nodeid' min='1' max='254' size='3'>
+            &nbsp &nbsp &nbsp &nbsp
+            request Data from Node:
+            <input type='checkbox' name='reqfromNode' value='1'>
+            &nbsp &nbsp &nbsp &nbsp
+            <input type='submit' value='set Node Id to edit'><br>
+        </form>
+</body>
+</html>
+)rawliteral";
+
+static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name = 'viewport' content = 'width = device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable=0'>
+  <title>RFM69 Node Configuration</title>
+  <style>
+    'body { background-color: #808080; font-family: Arial, Helvetica, Sans-Serif; Color: #000000; }'
+  </style>
+</head>
+<body>
+    <h3>RFM69 Node Configuration</h3>
+    <p><a href="/"><button type="button">Home</button></a>
+        <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+            <label>nodeId &nbsp</label>
+            <input type='number' name='nodeid' min='1' max='254' size='3'>
+            &nbsp &nbsp &nbsp &nbsp
+            request Data from Node:
+            <input type='checkbox' name='reqfromNode' value='1'>
+            &nbsp &nbsp &nbsp &nbsp
+            <input type='submit' value='set Node Id to edit'><br>
+        </form>
+    DIO:
+    <table>
+        <tbody>
+            <tr>
+                <td> &nbsp &nbsp </td>
+                <td> out &nbsp &nbsp </td>
+                <td> high &nbsp &nbsp </td>
+                <td> intRise &nbsp &nbsp </td>
+                <td> intFall &nbsp &nbsp </td>
+                <td> wdDefault &nbsp &nbsp </td>
+                <td> wdReq &nbsp &nbsp </td>
+                <td> readInput &nbsp &nbsp </td>
+                <td> count &nbsp &nbsp </td>
+            </tr>
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> P1 &nbsp </td>
+                    <td> <input type='checkbox' name='w_0' value='1'> </td>
+                    <td> <input type='checkbox' name='w_0' value='2'> </td>
+                    <td> <input type='checkbox' name='w_0' value='4'> </td>
+                    <td> <input type='checkbox' name='w_0' value='8'> </td>
+                    <td> <input type='checkbox' name='w_0' value='16'> </td>
+                    <td> <input type='checkbox' name='w_0' value='32'> </td>
+                    <td> <input type='checkbox' name='w_0' value='64'> </td>
+                    <td> <input type='checkbox' name='w_0' value='128'> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr> 
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> P0 &nbsp </td>
+                    <td> <input type='checkbox' name='w_1' value='1'> </td>
+                    <td> <input type='checkbox' name='w_1' value='2'> </td>
+                    <td> <input type='checkbox' name='w_1' value='4'> </td>
+                    <td> <input type='checkbox' name='w_1' value='8'> </td>
+                    <td> <input type='checkbox' name='w_1' value='16'> </td>
+                    <td> <input type='checkbox' name='w_1' value='32'> </td>
+                    <td> <input type='checkbox' name='w_1' value='64'> </td>
+                    <td> <input type='checkbox' name='w_1' value='128'> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr> 
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> P19 &nbsp </td>
+                    <td> <input type='checkbox' name='w_2' value='1'> </td>
+                    <td> <input type='checkbox' name='w_2' value='2'> </td>
+                    <td> <input type='checkbox' name='w_2' value='4'> </td>
+                    <td> <input type='checkbox' name='w_2' value='8'> </td>
+                    <td> <input type='checkbox' name='w_2' value='16'> </td>
+                    <td> <input type='checkbox' name='w_2' value='32'> </td>
+                    <td> <input type='checkbox' name='w_2' value='64'> </td>
+                    <td> <input type='checkbox' name='w_2' value='128'> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr> 
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> P18 &nbsp </td>
+                    <td> <input type='checkbox' name='w_3' value='1'> </td>
+                    <td> <input type='checkbox' name='w_3' value='2'> </td>
+                    <td> <input type='checkbox' name='w_3' value='4'> </td>
+                    <td> <input type='checkbox' name='w_3' value='8'> </td>
+                    <td> <input type='checkbox' name='w_3' value='16'> </td>
+                    <td> <input type='checkbox' name='w_3' value='32'> </td>
+                    <td> <input type='checkbox' name='w_3' value='64'> </td>
+                    <td> <input type='checkbox' name='w_3' value='128'> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr> 
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> P9 &nbsp </td>
+                    <td> <input type='checkbox' name='w_4' value='1'> </td>
+                    <td> <input type='checkbox' name='w_4' value='2'> </td>
+                    <td> <input type='checkbox' name='w_4' value='4'> </td>
+                    <td> <input type='checkbox' name='w_4' value='8'> </td>
+                    <td> <input type='checkbox' name='w_4' value='16'> </td>
+                    <td> <input type='checkbox' name='w_4' value='32'> </td>
+                    <td> <input type='checkbox' name='w_4' value='64'> </td>
+                    <td> <input type='checkbox' name='w_4' value='128'> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr> 
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> P16 &nbsp </td>
+                    <td> <input type='checkbox' name='w_5' value='1'> </td>
+                    <td> <input type='checkbox' name='w_5' value='2'> </td>
+                    <td> <input type='checkbox' name='w_5' value='4'> </td>
+                    <td> <input type='checkbox' name='w_5' value='8'> </td>
+                    <td> <input type='checkbox' name='w_5' value='16'> </td>
+                    <td> <input type='checkbox' name='w_5' value='32'> </td>
+                    <td> <input type='checkbox' name='w_5' value='64'> </td>
+                    <td> <input type='checkbox' name='w_5' value='128'> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr> 
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> P17 &nbsp </td>
+                    <td> <input type='checkbox' name='w_6' value='1'> </td>
+                    <td> <input type='checkbox' name='w_6' value='2'> </td>
+                    <td> <input type='checkbox' name='w_6' value='4'> </td>
+                    <td> <input type='checkbox' name='w_6' value='8'> </td>
+                    <td> <input type='checkbox' name='w_6' value='16'> </td>
+                    <td> <input type='checkbox' name='w_6' value='32'> </td>
+                    <td> <input type='checkbox' name='w_6' value='64'> </td>
+                    <td> <input type='checkbox' name='w_6' value='128'> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr>
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> P1 &nbsp </td>
+                    <td> <input type='checkbox' name='w_7' value='1'> </td>
+                    <td> <input type='checkbox' name='w_7' value='2'> </td>
+                    <td> <input type='checkbox' name='w_7' value='4'> </td>
+                    <td> <input type='checkbox' name='w_7' value='8'> </td>
+                    <td> <input type='checkbox' name='w_7' value='16'> </td>
+                    <td> <input type='checkbox' name='w_7' value='32'> </td>
+                    <td> <input type='checkbox' name='w_7' value='64'> </td>
+                    <td> <input type='checkbox' name='w_7' value='128'> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr>
+        </tbody>
+    </table>
+Analog:
+    <table>
+        <tbody>
+           <tr>
+              <td> &nbsp &nbsp </td>
+              <td> plant &nbsp &nbsp </td>
+              <td> ldr &nbsp &nbsp </td>
+              <td> rain &nbsp &nbsp </td>
+              <td> raw &nbsp &nbsp </td>
+           </tr>
+           <tr>
+              <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                  <td> A2 &nbsp </td>
+                  <td> <input type="checkbox" name="w_10" value="1"> </td>
+                  <td> <input type="checkbox" name="w_10" value="2"> </td>
+                  <td> <input type="checkbox" name="w_10" value="4"> </td>
+                  <td> <input type="checkbox" name="w_10" value="8"> </td>
+                  <td> <input type='submit' value='save'></td>
+              </form>
+           </tr>
+           <tr>
+              <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                  <td> A3 &nbsp </td>
+                  <td> <input type="checkbox" name="w_11" value="1"> </td>
+                  <td> <input type="checkbox" name="w_11" value="2"> </td>
+                  <td> <input type="checkbox" name="w_11" value="4"> </td>
+                  <td> <input type="checkbox" name="w_11" value="8"> </td>
+                  <td> <input type='submit' value='save'></td>
+              </form>
+           </tr>
+           <tr>
+               <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                  <td> A4 &nbsp </td>
+                  <td> <input type="checkbox" name="w_12" value="1"> </td>
+                  <td> <input type="checkbox" name="w_12" value="2"> </td>
+                  <td> <input type="checkbox" name="w_12" value="4"> </td>
+                  <td> <input type="checkbox" name="w_12" value="8"> </td>
+                  <td> <input type='submit' value='save'></td>
+              </form>
+           </tr>
+           <tr>
+               <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                  <td> A5 &nbsp </td>
+                  <td> <input type="checkbox" name="w_13" value="1"> </td>
+                  <td> <input type="checkbox" name="w_13" value="2"> </td>
+                  <td> <input type="checkbox" name="w_13" value="4"> </td>
+                  <td> <input type="checkbox" name="w_13" value="8"> </td>                  
+                  <td> <input type='submit' value='save'></td>
+              </form>
+           </tr>
+        </tbody>
+    </table>
+digitalSensors:
+    <table>
+        <tbody>
+          <tr>
+              <td> &nbsp &nbsp </td>
+              <td> DS18b20 &nbsp &nbsp </td>
+              <td> HC05 &nbsp &nbsp </td>
+              <td> BME/P280 &nbsp &nbsp </td>
+          </tr>
+          <tr>
+              <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                  <td> &nbsp &nbsp </td>
+                  <td> <input type="checkbox" name="w_15" value="1"> </td>
+                  <td> <input type="checkbox" name="w_15" value="2"> </td>
+                  <td> <input type="checkbox" name="w_15" value="4"> </td>
+                  <td> <input type='submit' value='save'></td>
+              </form>
+          </tr>
+        </tbody>
+    </table>
+digitalOut:
+    <table>
+        <tbody>
+          <tr>
+              <td> &nbsp &nbsp </td>
+              <td> free &nbsp &nbsp </td>
+              <td> free &nbsp &nbsp </td>
+              <td> ssd1306_64x48 &nbsp &nbsp </td>
+              <td> ssd1306_128x64 &nbsp &nbsp </td>
+          </tr>
+          <tr>
+              <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                   <td> &nbsp &nbsp  </td>
+                   <td> <input type="checkbox" name="w_16" value="1"> </td>
+                   <td> <input type="checkbox" name="w_16" value="2"> </td>
+                   <td> <input type="checkbox" name="w_16" value="4"> </td>
+                   <td> <input type="checkbox" name="w_16" value="8"> </td>
+                  <td> <input type='submit' value='save'></td>
+              </form>
+          </tr>
+        </tbody>
+    </table>
+nodeControll:
+    <table>
+        <tbody>
+            <tr>
+                <td> &nbsp &nbsp </td>
+                <td> sensorPower &nbsp &nbsp </td>
+                <td> pumpSensorV &nbsp &nbsp </td>
+                <td> sensorPowerSleep &nbsp &nbsp </td>
+                <td> debugLed &nbsp &nbsp </td>
+                <td> displayAlwaysOn &nbsp &nbsp </td>
+            </tr>
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> &nbsp &nbsp  </td>
+                    <td> <input type="checkbox" name="w_20" value="1"> </td>
+                    <td> <input type="checkbox" name="w_20" value="2"> </td>
+                    <td> <input type="checkbox" name="w_20" value="4"> </td>
+                    <td> <input type="checkbox" name="w_20" value="8"> </td>
+                    <td> <input type="checkbox" name="w_20" value="16"> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr>
+        </tbody>
+    </table>
+ 
+    <table>
+        <tbody>
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> sleepTimeMulti &nbsp &nbsp </td>
+                    <td> <input type="text" name="w_21" id="value"> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr>
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> sleepTime &nbsp &nbsp </td>
+                    <td> <input type="text" name="w_22" id="value"> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr>
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> watchdogTimeout &nbsp &nbsp </td>
+                    <td> <input type="text" name="w_23" id="value"> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr>
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> wathdogDelay &nbsp &nbsp </td>
+                    <td> <input type="text" name="w_24" id="value"> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr>
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> contrast &nbsp &nbsp </td>
+                    <td> <input type="text" name="w_26" id="value"> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr>
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> nodeId &nbsp &nbsp </td>
+                    <td> <input type="text" name="w_27" id="value"> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr>
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> networkId &nbsp &nbsp </td>
+                    <td> <input type="text" name="w_28" id="value"> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr>
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> gatewayId &nbsp &nbsp </td>
+                    <td> <input type="text" name="w_29" id="value"> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr>
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <td> sensorDelay &nbsp &nbsp </td>
+                    <td> <input type="text" name="w_30" id="value"> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr>
+        </tbody>
+    </table>
+    <p><a href="/"><button type="button">Home</button></a>
 </body>
 </html>
 )rawliteral";
@@ -614,6 +985,72 @@ void handleconfiguregwmqttWrite()
   }
 }
 
+void handleconfigurenode(){
+  
+  for (uint8_t i=0; i<webServer.args(); i++) {
+      Serial.print(webServer.argName(i));
+      Serial.print('=');
+      Serial.println(webServer.arg(i));
+  }
+  webServer.send(200, "text/html", SELECTNODE);
+  
+}
+
+void handleconfigurenodeWrite(){
+  String argi, argNamei;
+  char tempValueChar[5];
+  static char tempNodeId[5] = "";
+  const char *argnameStr;
+  uint8_t tempValue = 0;
+  boolean sendData = false;
+  boolean deleteNodeId = false;
+
+  for (uint8_t i=0; i<webServer.args(); i++) {
+      Serial.print(webServer.argName(i));
+      Serial.print('=');
+      Serial.println(webServer.arg(i));
+      argi = webServer.arg(i);
+      argNamei = webServer.argName(i);
+      argnameStr = argNamei.c_str();
+      const char *argStr = argi.c_str();
+      if (strncmp(argnameStr, "w_", 2) == 0) {
+          tempValue += atoi(argStr);
+          sendData = true;
+          //deleteNodeId = true;
+      }else if (strncmp(argnameStr, "nodeid", 2) == 0) {
+          strncpy(tempNodeId, argStr, 5);
+      }else{
+          deleteNodeId = true;
+      }
+  }
+  if (sendData){
+      //built json Message
+      itoa(tempValue, tempValueChar, 10);
+      char jsonMessage[15] = "{\"";
+      strncat(jsonMessage, argnameStr, 5);
+      strcat(jsonMessage, "\":\"");
+      strncat(jsonMessage, tempValueChar, 4);
+      strcat(jsonMessage, "\"}");
+      //built topic
+      char temptopic[30]="rfmOut/";
+      char tempNetworkId[5];
+      itoa(pGC->networkid, tempNetworkId, 10);
+      strncat(temptopic, tempNetworkId, 5);
+      strcat(temptopic, "/");
+      strncat(temptopic, tempNodeId, 5);
+      strcat(temptopic, "/");
+      strncat(temptopic, argnameStr,5);
+      if (strncmp(tempNodeId, "", 5) != 0) {
+          mqttClient.publish(temptopic, jsonMessage);
+      }
+  }
+  if (deleteNodeId){
+    strcpy(tempNodeId, "");
+  }
+  webServer.send(200, "text/html", CONFIGURENODE);
+  
+} 
+
 void websock_setup(void) {
   webServer.on("/", handleRoot);
   webServer.on("/configGW", HTTP_GET, handleconfiguregw);
@@ -622,6 +1059,8 @@ void websock_setup(void) {
   webServer.on("/configGWmqtt", HTTP_GET, handleconfiguregwmqtt);
   webServer.on("/configGWmqtt", HTTP_POST, handleconfiguregwmqttWrite);
   webServer.on("/configGWreset", HTTP_GET, handleconfiguregwreset);
+  webServer.on("/configGWnode", HTTP_GET, handleconfigurenode);
+  webServer.on("/configGWnode", HTTP_POST, handleconfigurenodeWrite);
   webServer.onNotFound(handleNotFound);
   webServer.begin();
 
