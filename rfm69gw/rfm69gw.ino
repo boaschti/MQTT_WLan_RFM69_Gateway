@@ -62,7 +62,7 @@ const char PROGMEM UPDATEPASSWORD[] =	"B";//sw
 const char PROGMEM MQTTPASSWORD[]   = "B";
 const char PROGMEM MQTTUSER[]   = "B";
 
-#define NETWORKID		200  //the same on all nodes that talk to each other
+#define NETWORKID		1  //the same on all nodes that talk to each other
 #define NODEID			1
 
 //Match frequency to the hardware version of the radio
@@ -1021,7 +1021,7 @@ void handleconfiguregwmqttWrite()
             if (strcmp(broker, pGC->mqttbroker) != 0) {
                 commit_required = true;
                 strcpy(pGC->mqttbroker, broker);
-                //Wenn der Key geaendert wird dann loeschn wiri auch den encrypt key
+                //Wenn der Key geaendert wird dann loeschen wir auch den encrypt key
                 #if showKeysInWeb == false
                     strcpy_P(pGC->encryptkey, ENCRYPTKEY);
                 #endif
@@ -1089,7 +1089,6 @@ void handleconfigurenodeWrite(){
   const char *argnameStr;
   uint8_t tempValue = 0;
   boolean sendData = false;
-  boolean deleteNodeId = false;
 
   for (uint8_t i=0; i<webServer.args(); i++) {
       Serial.print(webServer.argName(i));
@@ -1102,11 +1101,10 @@ void handleconfigurenodeWrite(){
       if (strncmp(argnameStr, "w_", 2) == 0) {
           tempValue += atoi(argStr);
           sendData = true;
-          //deleteNodeId = true;
       }else if (strncmp(argnameStr, "nodeid", 2) == 0) {
           strncpy(tempNodeId, argStr, 5);
       }else{
-          deleteNodeId = true;
+
       }
   }
   if (sendData){
@@ -1127,11 +1125,8 @@ void handleconfigurenodeWrite(){
       strcat(temptopic, "/");
       strncat(temptopic, argnameStr,5);
       if (strncmp(tempNodeId, "", 5) != 0) {
-          mqttClient.publish(temptopic, jsonMessage);
+          mqttClient.publish(temptopic, jsonMessage, true);
       }
-  }
-  if (deleteNodeId){
-    strcpy(tempNodeId, "");
   }
   webServer.send(200, "text/html", CONFIGURENODE);
   
@@ -1531,6 +1526,9 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
         //remember if node is unsubscribed
         reachableNode[varNumber] &= ~(1<<bitNumber);
         mqttClient.unsubscribe(nodeRx_topic);
+    }else if (message[0] == 19){
+        //remember that node is reachable, this kommand is sent by nodes without sleep at startup
+        reachableNode[varNumber] |= (1<<bitNumber);
     }else{
         const char *p_start, *p_end;
         uint8_t messageLen = strlen(message);
