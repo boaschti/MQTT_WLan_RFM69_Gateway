@@ -564,20 +564,6 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
                     <td> <input type='submit' value='save'></td>
                 </form>
             </tr>
-            <tr>
-                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
-                    <td> P1 &nbsp </td>
-                    <td> <input type='checkbox' name='w_7' value='1'> </td>
-                    <td> <input type='checkbox' name='w_7' value='2'> </td>
-                    <td> <input type='checkbox' name='w_7' value='4'> </td>
-                    <td> <input type='checkbox' name='w_7' value='8'> </td>
-                    <td> <input type='checkbox' name='w_7' value='16'> </td>
-                    <td> <input type='checkbox' name='w_7' value='32'> </td>
-                    <td> <input type='checkbox' name='w_7' value='64'> </td>
-                    <td> <input type='checkbox' name='w_7' value='128'> </td>
-                    <td> <input type='submit' value='save'></td>
-                </form>
-            </tr>
         </tbody>
     </table>
 Analog:
