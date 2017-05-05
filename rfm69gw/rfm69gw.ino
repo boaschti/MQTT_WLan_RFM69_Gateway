@@ -479,6 +479,7 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
             </tr>
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='w_0' value='0'>
                     <td> P1 &nbsp </td>
                     <td> <input type='checkbox' name='w_0' value='1'> </td>
                     <td> <input type='checkbox' name='w_0' value='2'> </td>
@@ -493,6 +494,7 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
             </tr> 
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='w_1' value='0'>
                     <td> P0 &nbsp </td>
                     <td> <input type='checkbox' name='w_1' value='1'> </td>
                     <td> <input type='checkbox' name='w_1' value='2'> </td>
@@ -507,6 +509,7 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
             </tr> 
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='w_2' value='0'>
                     <td> P19 &nbsp </td>
                     <td> <input type='checkbox' name='w_2' value='1'> </td>
                     <td> <input type='checkbox' name='w_2' value='2'> </td>
@@ -521,6 +524,7 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
             </tr> 
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='w_3' value='0'>
                     <td> P18 &nbsp </td>
                     <td> <input type='checkbox' name='w_3' value='1'> </td>
                     <td> <input type='checkbox' name='w_3' value='2'> </td>
@@ -535,6 +539,7 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
             </tr> 
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='w_4' value='0'>
                     <td> P9 &nbsp </td>
                     <td> <input type='checkbox' name='w_4' value='1'> </td>
                     <td> <input type='checkbox' name='w_4' value='2'> </td>
@@ -549,6 +554,7 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
             </tr> 
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='w_5' value='0'>
                     <td> P16 &nbsp </td>
                     <td> <input type='checkbox' name='w_5' value='1'> </td>
                     <td> <input type='checkbox' name='w_5' value='2'> </td>
@@ -563,6 +569,7 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
             </tr> 
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='w_6' value='0'>
                     <td> P17 &nbsp </td>
                     <td> <input type='checkbox' name='w_6' value='1'> </td>
                     <td> <input type='checkbox' name='w_6' value='2'> </td>
@@ -589,6 +596,7 @@ Analog:
            </tr>
            <tr>
               <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                  <input type='hidden' name='w_10' value='0'>
                   <td> A2 &nbsp </td>
                   <td> <input type="checkbox" name="w_10" value="1"> </td>
                   <td> <input type="checkbox" name="w_10" value="2"> </td>
@@ -599,6 +607,7 @@ Analog:
            </tr>
            <tr>
               <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                  <input type='hidden' name='w_11' value='0'>
                   <td> A3 &nbsp </td>
                   <td> <input type="checkbox" name="w_11" value="1"> </td>
                   <td> <input type="checkbox" name="w_11" value="2"> </td>
@@ -609,6 +618,7 @@ Analog:
            </tr>
            <tr>
                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                  <input type='hidden' name='w_12' value='0'>
                   <td> A4 &nbsp </td>
                   <td> <input type="checkbox" name="w_12" value="1"> </td>
                   <td> <input type="checkbox" name="w_12" value="2"> </td>
@@ -619,6 +629,7 @@ Analog:
            </tr>
            <tr>
                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                  <input type='hidden' name='w_13' value='0'>
                   <td> A5 &nbsp </td>
                   <td> <input type="checkbox" name="w_13" value="1"> </td>
                   <td> <input type="checkbox" name="w_13" value="2"> </td>
@@ -640,6 +651,7 @@ digitalSensors:
           </tr>
           <tr>
               <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                  <input type='hidden' name='w_15' value='0'>
                   <td> &nbsp &nbsp </td>
                   <td> <input type="checkbox" name="w_15" value="1"> </td>
                   <td> <input type="checkbox" name="w_15" value="2"> </td>
@@ -661,6 +673,7 @@ digitalOut:
           </tr>
           <tr>
               <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                   <input type='hidden' name='w_16' value='0'>
                    <td> &nbsp &nbsp  </td>
                    <td> <input type="checkbox" name="w_16" value="1"> </td>
                    <td> <input type="checkbox" name="w_16" value="2"> </td>
@@ -684,6 +697,7 @@ nodeControll:
             </tr>
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='w_20' value='0'>
                     <td> &nbsp &nbsp  </td>
                     <td> <input type="checkbox" name="w_20" value="1"> </td>
                     <td> <input type="checkbox" name="w_20" value="2"> </td>
@@ -700,6 +714,7 @@ nodeControll:
         <tbody>
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='w_21' value='0'>
                     <td> sleepTimeMulti &nbsp &nbsp </td>
                     <td> <input type="text" name="w_21" id="value"> </td>
                     <td> <input type='submit' value='save'></td>
@@ -707,6 +722,7 @@ nodeControll:
             </tr>
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='w_22' value='0'>
                     <td> sleepTime &nbsp &nbsp </td>
                     <td> <input type="text" name="w_22" id="value"> </td>
                     <td> <input type='submit' value='save'></td>
@@ -714,6 +730,7 @@ nodeControll:
             </tr>
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='w_23' value='0'>
                     <td> watchdogTimeout &nbsp &nbsp </td>
                     <td> <input type="text" name="w_23" id="value"> </td>
                     <td> <input type='submit' value='save'></td>
@@ -721,13 +738,15 @@ nodeControll:
             </tr>
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
-                    <td> wathdogDelay &nbsp &nbsp </td>
+                    <input type='hidden' name='w_24' value='0'>
+                    <td> watchdogDelay &nbsp &nbsp </td>
                     <td> <input type="text" name="w_24" id="value"> </td>
                     <td> <input type='submit' value='save'></td>
                 </form>
             </tr>
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='w_26' value='0'>
                     <td> contrast &nbsp &nbsp </td>
                     <td> <input type="text" name="w_26" id="value"> </td>
                     <td> <input type='submit' value='save'></td>
@@ -735,6 +754,7 @@ nodeControll:
             </tr>
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='w_27' value='0'>
                     <td> nodeId &nbsp &nbsp </td>
                     <td> <input type="text" name="w_27" id="value"> </td>
                     <td> <input type='submit' value='save'></td>
@@ -742,6 +762,7 @@ nodeControll:
             </tr>
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='w_28' value='0'>
                     <td> networkId &nbsp &nbsp </td>
                     <td> <input type="text" name="w_28" id="value"> </td>
                     <td> <input type='submit' value='save'></td>
@@ -749,6 +770,7 @@ nodeControll:
             </tr>
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='w_29' value='0'>
                     <td> gatewayId &nbsp &nbsp </td>
                     <td> <input type="text" name="w_29" id="value"> </td>
                     <td> <input type='submit' value='save'></td>
@@ -756,6 +778,7 @@ nodeControll:
             </tr>
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='w_30' value='0'>
                     <td> sensorDelay &nbsp &nbsp </td>
                     <td> <input type="text" name="w_30" id="value"> </td>
                     <td> <input type='submit' value='save'></td>
