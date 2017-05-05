@@ -62,8 +62,9 @@ const char PROGMEM UPDATEPASSWORD[] =	"B";//sw
 const char PROGMEM MQTTPASSWORD[]   = "B";
 const char PROGMEM MQTTUSER[]   = "B";
 
-#define NETWORKID		1  //the same on all nodes that talk to each other
-#define NODEID			1
+#define NEWNODE_NODEID    "254"
+#define NETWORKID		      1  //the same on all nodes that talk to each other
+#define NODEID			      1
 
 //Match frequency to the hardware version of the radio
 #define FREQUENCY		RF69_433MHZ
@@ -425,6 +426,15 @@ static const char PROGMEM SELECTNODE[] = R"rawliteral(
             <input type='checkbox' name='reqfromNode' value='1'>
             &nbsp &nbsp &nbsp &nbsp
             <input type='submit' value='set Node Id to edit'><br>
+        </form>
+        <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+            <input type='hidden' name='setupNewNode'>
+            <p>
+            <label>Setup new nodes:</label>
+            <label>new nodeId &nbsp</label>
+            <input type='number' name='w_27' min='1' max='254' size='3'>
+            &nbsp &nbsp &nbsp &nbsp
+            <input type='submit' value='setup new node'><br>
         </form>
 </body>
 </html>
@@ -1075,6 +1085,7 @@ void handleconfigurenodeWrite(){
   const char *argnameStr;
   uint8_t tempValue = 0;
   boolean sendData = false;
+  boolean sendKey = false;
 
   for (uint8_t i=0; i<webServer.args(); i++) {
       Serial.print(webServer.argName(i));
@@ -1089,31 +1100,87 @@ void handleconfigurenodeWrite(){
           sendData = true;
       }else if (strncmp(argnameStr, "nodeid", 2) == 0) {
           strncpy(tempNodeId, argStr, 5);
+      }else if (strncmp(argnameStr, "setupNewNode", 2) == 0) {
+          //set tempNodeId to standard nodeid for new nodes
+          strncpy(tempNodeId, NEWNODE_NODEID, 5);
+          sendKey = true;
       }else{
 
       }
   }
+  
+  //built topic
+  char temptopic[30]="rfmOut/";
+  char tempNetworkId[5];
+  itoa(pGC->networkid, tempNetworkId, 10);
+  strncat(temptopic, tempNetworkId, 5);
+  strcat(temptopic, "/");
+  strncat(temptopic, tempNodeId, 5);
+  strcat(temptopic, "/");
+  strncat(temptopic, argnameStr,5);
+
+  char jsonMessage[15] = "{\"";
   if (sendData){
       //built json Message
       itoa(tempValue, tempValueChar, 10);
-      char jsonMessage[15] = "{\"";
       strncat(jsonMessage, argnameStr, 5);
       strcat(jsonMessage, "\":\"");
       strncat(jsonMessage, tempValueChar, 4);
-      strcat(jsonMessage, "\"}");
-      //built topic
-      char temptopic[30]="rfmOut/";
+      strcat(jsonMessage, "\"");
+      //Wenn eine neue Node konfiguriert wurde übernehmen wir die neue Node Id
+      if (sendKey && (strncmp(argnameStr, "w_27", 4) == 0)){
+          strncpy(tempNodeId, tempValueChar, 5);
+          Serial.print("set to new nodeId:");
+          Serial.println(tempNodeId);
+      }
+  }
+
+  if(sendKey){
+      Serial.println("try to send encrypt key to node");
+      //wir bilden das Topic 
+      char tempTopic[25] = "rfmOut/";
       char tempNetworkId[5];
-      itoa(pGC->networkid, tempNetworkId, 10);
-      strncat(temptopic, tempNetworkId, 5);
-      strcat(temptopic, "/");
-      strncat(temptopic, tempNodeId, 5);
-      strcat(temptopic, "/");
-      strncat(temptopic, argnameStr,5);
+      itoa(NETWORKID,tempNetworkId,10);
+      strncat(tempTopic, tempNetworkId, 4);
+      strcat(tempTopic, "/") ;    
+      strncat(tempTopic, NEWNODE_NODEID, 4);
+      strcat(tempTopic, "/1");
+      
+      //setze das RFM69 auf standard Settings
+      radio.initialize(pGC->rfmfrequency, pGC->nodeid, NETWORKID);
+      char tempEncryptkey[16+1];
+      strcpy_P(tempEncryptkey, ENCRYPTKEY);
+      radio.encrypt(tempEncryptkey);
+      
+      //wir bilden die Nachricht mit den Encryptkey und networkId
+      char tempPayload[RF69_MAX_DATA_LEN+1]= "";
+      if (sendData){
+          strcat(tempPayload, jsonMessage);
+          strcat(tempPayload, ", ");
+      }else{
+          strcat(tempPayload, "{");
+      }
+      strcat(tempPayload, "\"w_100\":\"");
+      strncat(tempPayload, pGC->encryptkey, 16);
+      //strcat(tempPayload, "\"}");
+      strcat(tempPayload,"\", \"w_28\":\"");
+      itoa(pGC->networkid,tempNetworkId,10);
+      strncat(tempPayload, tempNetworkId, 16);
+      strcat(tempPayload, "\"}");
+      //sende die Nachricht
+      callback(tempTopic, (byte*)tempPayload, strnlen(tempPayload, RF69_MAX_DATA_LEN));
+
+      //setze das RFM auf den Normal Betrieb
+      radio.initialize(pGC->rfmfrequency, pGC->nodeid, pGC->networkid);
+      radio.encrypt(pGC->encryptkey);
+      Serial.println("RFM is set to normal Mode");
+  }else if (sendData){
       if (strncmp(tempNodeId, "", 5) != 0) {
+          strcat(jsonMessage, "}");
           mqttClient.publish(temptopic, jsonMessage, true);
       }
   }
+  
   webServer.send(200, "text/html", CONFIGURENODE);
   
 } 
@@ -1181,7 +1248,7 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message);
 #define LED           13  // onboard blinky
 #endif
 
-RFM69 radio;
+
 
 void radio_setup(void) {
   int freq;
