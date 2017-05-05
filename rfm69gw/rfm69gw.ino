@@ -79,6 +79,7 @@ const char PROGMEM MQTTUSER[]   = "B";
 
 WiFiClient espClient;
 PubSubClient mqttClient(espClient);
+RFM69 radio;
 
 // vvvvvvvvv Global Configuration vvvvvvvvvvv
 #include <EEPROM.h>
@@ -1318,14 +1319,14 @@ void radio_loop(void) {
     uint8_t senderId;
     int16_t rssi;
     uint8_t data[RF69_MAX_DATA_LEN + 1];
-	uint8_t dataLen;
+    uint8_t dataLen;
 
     //save packet because it may be overwritten
     senderId = radio.SENDERID;
     rssi = radio.RSSI;
-	dataLen = radio.DATALEN;
+    dataLen = radio.DATALEN;
     memcpy(data, (void *)radio.DATA, dataLen);
-	data[dataLen] = 0; //add 0 terminisation
+    data[dataLen] = 0; //add 0 terminisation
     //check if sender wanted an ACK
     if (radio.ACKRequested())
     {
@@ -1427,7 +1428,9 @@ void callback(char* topic, byte* payload, unsigned int length) {
 			mqttClient.publish(topic, "", true);			
 			Serial.println("Message sended to Node");
 		}
-	}
+	}else{
+    Serial.println("Thinking node is not reachable we will not send");
+  }
 }
 
 void mqtt_setup() {
