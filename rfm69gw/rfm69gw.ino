@@ -344,7 +344,7 @@ static const char PROGMEM CONFIGUREGWRFM69_HTML[] = R"rawliteral(
     <label>RFM69 Node ID</label>
     <input type='number' name='nodeid' value="%d" min="1" max="255" size="3"><br>
     <label>RFM69 Encryption Key</label>
-    <input type='text' name='encryptkeyweb' value="%s" size="16" maxlength="16"><br>
+    <input type='text' name='encryptkey' value="%s" size="16" maxlength="16"><br>
     <label>RFM69 Power Level</label>
     <input type='number' name='powerlevel' value="%d" min="0" max="31"size="2"><br>
     <label>RFM69 Frequency</label>
@@ -421,19 +421,20 @@ static const char PROGMEM SELECTNODE[] = R"rawliteral(
     <p><a href="/"><button type="button">Home</button></a>
         <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
             <label>nodeId &nbsp</label>
-            <input type='number' name='nodeid' min='1' max='254' size='3'>
+            <input type='number' name='nodeid' min='1' max='253' size='3'>
             &nbsp &nbsp &nbsp &nbsp
             request Data from Node:
-            <input type='checkbox' name='reqfromNode' value='1'>
+            <input type='checkbox' name='rAll_0' value='1'>
             &nbsp &nbsp &nbsp &nbsp
             <input type='submit' value='set Node Id to edit'><br>
         </form>
         <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
             <input type='hidden' name='setupNewNode'>
             <p>
-            <label>Setup new nodes:</label>
+            Setup new nodes:
+            <P>
             <label>new nodeId &nbsp</label>
-            <input type='number' name='w_27' min='1' max='254' size='3'>
+            <input type='number' name='w_27' min='1' max='253' size='3'>
             &nbsp &nbsp &nbsp &nbsp
             <input type='submit' value='setup new node'><br>
         </form>
@@ -456,12 +457,16 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
     <p><a href="/"><button type="button">Home</button></a>
         <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
             <label>nodeId &nbsp</label>
-            <input type='number' name='nodeid' min='1' max='254' size='3'>
+            <input type='number' name='nodeid' min='1' max='253' size='3'>
             &nbsp &nbsp &nbsp &nbsp
             request Data from Node:
-            <input type='checkbox' name='reqfromNode' value='1'>
+            <input type='checkbox' name='rAll_0' value='1'>
             &nbsp &nbsp &nbsp &nbsp
             <input type='submit' value='set Node Id to edit'><br>
+        </form>
+        <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+            <input type='hidden' name='led_0' value='blink'>
+            <input type='submit' value='test'><br>
         </form>
     DIO:
     <table>
@@ -784,6 +789,14 @@ nodeControll:
                     <td> <input type='submit' value='save'></td>
                 </form>
             </tr>
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='none' value='0'>
+                    <td> encryptKey (16 chars!)&nbsp &nbsp </td>
+                    <td> <input type="text" name="key_1" id="value" size="16" maxlength="16" minlenght="16"> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr>
         </tbody>
     </table>
     <p><a href="/"><button type="button">Home</button></a>
@@ -931,6 +944,7 @@ void handleconfiguregwrfm69Write()
           if (strcmp(enckey, pGC->encryptkey) != 0) {
               commit_required = true;
               strcpy(pGC->encryptkey, enckey);
+              Serial.println("encryptkey changed");
           }
       }
     }
@@ -984,6 +998,7 @@ void handleconfiguregwrfm69Write()
             if (strcmp(newusr, pGC->updatePassword) != 0) {
                 commit_required = true;
                 strcpy(pGC->updateUser, newusr);
+                Serial.println("user changed");
             }
         }
     }
@@ -993,6 +1008,7 @@ void handleconfiguregwrfm69Write()
             if (strcmp(newpw, pGC->updatePassword) != 0) {
                 commit_required = true;
                 strcpy(pGC->updatePassword, newpw);
+                Serial.println("password changed");
             }
         }
     }
@@ -1104,7 +1120,7 @@ void handleconfigurenode(){
 
 void handleconfigurenodeWrite(){
   String argi, argNamei;
-  char tempValueChar[5];
+  char tempValueChar[21];
   static char tempNodeId[5] = "";
   const char *argnameStr;
   uint8_t tempValue = 0;
@@ -1121,13 +1137,23 @@ void handleconfigurenodeWrite(){
       const char *argStr = argi.c_str();
       if (strncmp(argnameStr, "w_", 2) == 0) {
           tempValue += atoi(argStr);
+          itoa(tempValue, tempValueChar, 10);
           sendData = true;
-      }else if (strncmp(argnameStr, "nodeid", 2) == 0) {
+      }else if (strncmp(argnameStr, "rAll_0", 6) == 0){
+          strncpy(tempValueChar, argStr, 5);
+          sendData = true;
+      }else if (strncmp(argnameStr, "nodeid", 6) == 0) {
           strncpy(tempNodeId, argStr, 5);
-      }else if (strncmp(argnameStr, "setupNewNode", 2) == 0) {
+      }else if (strncmp(argnameStr, "setupNewNode", 12) == 0) {
           //set tempNodeId to standard nodeid for new nodes
           strncpy(tempNodeId, NEWNODE_NODEID, 5);
           sendKey = true;
+      }else if ((strncmp(argnameStr, "key_", 4) == 0) && (strlen(argStr) == 16)) {
+          strncpy(tempValueChar, argStr, 16+1);
+          sendData = true;
+      }else if (strncmp(argnameStr, "led_", 4) == 0) {
+          strncpy(tempValueChar, argStr, 6);
+          sendData = true;
       }else{
 
       }
@@ -1141,15 +1167,14 @@ void handleconfigurenodeWrite(){
   strcat(temptopic, "/");
   strncat(temptopic, tempNodeId, 5);
   strcat(temptopic, "/");
-  strncat(temptopic, argnameStr,5);
+  strncat(temptopic, argnameStr,7);
 
-  char jsonMessage[15] = "{\"";
+  char jsonMessage[35] = "{\"";
   if (sendData){
-      //built json Message
-      itoa(tempValue, tempValueChar, 10);
+      //built json Message      
       strncat(jsonMessage, argnameStr, 5);
       strcat(jsonMessage, "\":\"");
-      strncat(jsonMessage, tempValueChar, 4);
+      strncat(jsonMessage, tempValueChar, 20);
       strcat(jsonMessage, "\"");
       //Wenn eine neue Node konfiguriert wurde übernehmen wir die neue Node Id
       if (sendKey && (strncmp(argnameStr, "w_27", 4) == 0)){
@@ -1184,7 +1209,7 @@ void handleconfigurenodeWrite(){
       }else{
           strcat(tempPayload, "{");
       }
-      strcat(tempPayload, "\"w_100\":\"");
+      strcat(tempPayload, "\"key_1\":\"");
       strncat(tempPayload, pGC->encryptkey, 16);
       //strcat(tempPayload, "\"}");
       strcat(tempPayload,"\", \"w_28\":\"");
