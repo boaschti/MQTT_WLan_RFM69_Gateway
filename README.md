@@ -10,6 +10,8 @@ Just download ESP flasher an flash *.bin and have fun...
  
 ### Software Features
 - Access Point on startup without valid network connection to configure WLan
+- Configuration page to configure MQTT
+- OTA
 - webinterface to configure the whole RFM69 Network
 - Gateway remembers if Node is reachable (commands 17, 18, 19 from node)
 - the Gateway cuts long json Messages to single Messages e.g. {"p_0":"1", "p_1":"1"} -> topic:rfmIn/networkId/nodeId/p_0 message:{"p_0":"1"} and topic:rfmIn/networkId/nodeId/p_1 message:{"p_1":"1"}
