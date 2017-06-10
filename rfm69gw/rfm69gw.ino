@@ -598,7 +598,10 @@ Analog:
               <td> ldr &nbsp &nbsp </td>
               <td> rain &nbsp &nbsp </td>
               <td> raw &nbsp &nbsp </td>
-           </tr>
+              <td> Volt &nbsp &nbsp </td>
+              <td> *2 &nbsp &nbsp </td>
+              <td> *4 &nbsp &nbsp </td>
+              </tr>
            <tr>
               <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
                   <input type='hidden' name='w_10' value='0'>
@@ -607,6 +610,9 @@ Analog:
                   <td> <input type="checkbox" name="w_10" value="2"> </td>
                   <td> <input type="checkbox" name="w_10" value="4"> </td>
                   <td> <input type="checkbox" name="w_10" value="8"> </td>
+                  <td> <input type="checkbox" name="w_10" value="16"> </td>
+                  <td> <input type="checkbox" name="w_10" value="64"> </td>
+                  <td> <input type="checkbox" name="w_10" value="128"> </td>
                   <td> <input type='submit' value='save'></td>
               </form>
            </tr>
@@ -618,6 +624,9 @@ Analog:
                   <td> <input type="checkbox" name="w_11" value="2"> </td>
                   <td> <input type="checkbox" name="w_11" value="4"> </td>
                   <td> <input type="checkbox" name="w_11" value="8"> </td>
+                  <td> <input type="checkbox" name="w_11" value="16"> </td>
+                  <td> <input type="checkbox" name="w_11" value="64"> </td>
+                  <td> <input type="checkbox" name="w_11" value="128"> </td>
                   <td> <input type='submit' value='save'></td>
               </form>
            </tr>
@@ -629,6 +638,9 @@ Analog:
                   <td> <input type="checkbox" name="w_12" value="2"> </td>
                   <td> <input type="checkbox" name="w_12" value="4"> </td>
                   <td> <input type="checkbox" name="w_12" value="8"> </td>
+                  <td> <input type="checkbox" name="w_12" value="16"> </td>
+                  <td> <input type="checkbox" name="w_12" value="64"> </td>
+                  <td> <input type="checkbox" name="w_12" value="128"> </td>
                   <td> <input type='submit' value='save'></td>
               </form>
            </tr>
@@ -640,6 +652,9 @@ Analog:
                   <td> <input type="checkbox" name="w_13" value="2"> </td>
                   <td> <input type="checkbox" name="w_13" value="4"> </td>
                   <td> <input type="checkbox" name="w_13" value="8"> </td>                  
+                  <td> <input type="checkbox" name="w_13" value="16"> </td>
+                  <td> <input type="checkbox" name="w_13" value="64"> </td>
+                  <td> <input type="checkbox" name="w_13" value="128"> </td>
                   <td> <input type='submit' value='save'></td>
               </form>
            </tr>
