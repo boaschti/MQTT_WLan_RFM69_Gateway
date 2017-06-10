@@ -673,6 +673,7 @@ digitalOut:
               <td> &nbsp &nbsp </td>
               <td> free &nbsp &nbsp </td>
               <td> free &nbsp &nbsp </td>
+              <td> free &nbsp &nbsp </td>
               <td> ssd1306_64x48 &nbsp &nbsp </td>
               <td> ssd1306_128x64 &nbsp &nbsp </td>
           </tr>
@@ -684,6 +685,7 @@ digitalOut:
                    <td> <input type="checkbox" name="w_16" value="2"> </td>
                    <td> <input type="checkbox" name="w_16" value="4"> </td>
                    <td> <input type="checkbox" name="w_16" value="8"> </td>
+                   <td> <input type="checkbox" name="w_16" value="16"> </td>
                   <td> <input type='submit' value='save'></td>
               </form>
           </tr>
