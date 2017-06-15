@@ -140,11 +140,8 @@ void wifi_setup(void) {
   //here  "AutoConnectAP"
   //and goes into a blocking loop awaiting configuration
   
-  uint32_t blocking = wifiManager.autoConnect(pGC->rfmapname);
-  
-  while(!blocking) {
-    delay(20000);
-    wifiManager.autoConnect(pGC->rfmapname);
+  while(!wifiManager.autoConnect(pGC->rfmapname)) {
+    delay(60000);
   }
 
   Serial.println("connected");
@@ -359,7 +356,9 @@ static const char PROGMEM CONFIGUREGWRFM69_HTML[] = R"rawliteral(
     <input type='radio' name='rfm69hcw' id="hcw" value="0" %s> False<br>
     <label>RFM69 AP name</label>
     <input type='text' name='rfmapname' value="%s" size="32" maxlength="32"><br>
-    <label>Updater password</label><br>
+    <label>DNS name</label>
+    <input type='text' name='mdnsname' value="%s" size="32" maxlength="32"><br>
+    <label>Updater password:</label><br>
     <label>old user</label>
     <input type='text' name='olduser' value="%s" size="20" maxlength="20"><br>
     <label>old password</label>
@@ -396,8 +395,6 @@ static const char PROGMEM CONFIGUREGWMQTT_HTML[] = R"rawliteral(
     <input type='text' name='mqttclientuser' value="%s" size="32" maxlength="20"><br>
     <label>MQTT client password</label>
     <input type='text' name='mqttclientpassword' value="%s" size="32" maxlength="20"><br>
-    <label>MDNS name</label>
-    <input type='text' name='mdnsname' value="%s" size="32" maxlength="32"><br>
     <label>note: if you have seen %s and changed MQTT broker then set RFM69 encrypt key again!</label>
     <p><input type='submit' value='Save changes'>
   </form>
@@ -485,7 +482,7 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
                     <input type='hidden' name='w_0' value='0'>
-                    <td> P1 &nbsp </td>
+                    <td> Pin0 &nbsp </td>
                     <td> <input type='checkbox' name='w_0' value='1'> </td>
                     <td> <input type='checkbox' name='w_0' value='2'> </td>
                     <td> <input type='checkbox' name='w_0' value='4'> </td>
@@ -500,7 +497,7 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
                     <input type='hidden' name='w_1' value='0'>
-                    <td> P0 &nbsp </td>
+                    <td> Pin1 &nbsp </td>
                     <td> <input type='checkbox' name='w_1' value='1'> </td>
                     <td> <input type='checkbox' name='w_1' value='2'> </td>
                     <td> <input type='checkbox' name='w_1' value='4'> </td>
@@ -515,7 +512,7 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
                     <input type='hidden' name='w_2' value='0'>
-                    <td> P19 &nbsp </td>
+                    <td> Pin2 &nbsp </td>
                     <td> <input type='checkbox' name='w_2' value='1'> </td>
                     <td> <input type='checkbox' name='w_2' value='2'> </td>
                     <td> <input type='checkbox' name='w_2' value='4'> </td>
@@ -530,7 +527,7 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
                     <input type='hidden' name='w_3' value='0'>
-                    <td> P18 &nbsp </td>
+                    <td> Pin3 &nbsp </td>
                     <td> <input type='checkbox' name='w_3' value='1'> </td>
                     <td> <input type='checkbox' name='w_3' value='2'> </td>
                     <td> <input type='checkbox' name='w_3' value='4'> </td>
@@ -545,7 +542,7 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
                     <input type='hidden' name='w_4' value='0'>
-                    <td> P9 &nbsp </td>
+                    <td> Pin4 &nbsp </td>
                     <td> <input type='checkbox' name='w_4' value='1'> </td>
                     <td> <input type='checkbox' name='w_4' value='2'> </td>
                     <td> <input type='checkbox' name='w_4' value='4'> </td>
@@ -560,7 +557,7 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
                     <input type='hidden' name='w_5' value='0'>
-                    <td> P16 &nbsp </td>
+                    <td> Pin5 &nbsp </td>
                     <td> <input type='checkbox' name='w_5' value='1'> </td>
                     <td> <input type='checkbox' name='w_5' value='2'> </td>
                     <td> <input type='checkbox' name='w_5' value='4'> </td>
@@ -575,7 +572,7 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
                     <input type='hidden' name='w_6' value='0'>
-                    <td> P17 &nbsp </td>
+                    <td> Pin6 &nbsp </td>
                     <td> <input type='checkbox' name='w_6' value='1'> </td>
                     <td> <input type='checkbox' name='w_6' value='2'> </td>
                     <td> <input type='checkbox' name='w_6' value='4'> </td>
@@ -603,9 +600,37 @@ Analog:
               <td> *4 &nbsp &nbsp </td>
               </tr>
            <tr>
+               <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                  <input type='hidden' name='w_13' value='0'>
+                  <td> Pin2 (A5) &nbsp </td>
+                  <td> <input type="checkbox" name="w_13" value="1"> </td>
+                  <td> <input type="checkbox" name="w_13" value="2"> </td>
+                  <td> <input type="checkbox" name="w_13" value="4"> </td>
+                  <td> <input type="checkbox" name="w_13" value="8"> </td>                  
+                  <td> <input type="checkbox" name="w_13" value="16"> </td>
+                  <td> <input type="checkbox" name="w_13" value="64"> </td>
+                  <td> <input type="checkbox" name="w_13" value="128"> </td>
+                  <td> <input type='submit' value='save'></td>
+              </form>
+           </tr>
+           <tr>
+               <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                  <input type='hidden' name='w_12' value='0'>
+                  <td> Pin3 (A4)&nbsp </td>
+                  <td> <input type="checkbox" name="w_12" value="1"> </td>
+                  <td> <input type="checkbox" name="w_12" value="2"> </td>
+                  <td> <input type="checkbox" name="w_12" value="4"> </td>
+                  <td> <input type="checkbox" name="w_12" value="8"> </td>
+                  <td> <input type="checkbox" name="w_12" value="16"> </td>
+                  <td> <input type="checkbox" name="w_12" value="64"> </td>
+                  <td> <input type="checkbox" name="w_12" value="128"> </td>
+                  <td> <input type='submit' value='save'></td>
+              </form>
+           </tr>
+           <tr>
               <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
                   <input type='hidden' name='w_10' value='0'>
-                  <td> A2 &nbsp </td>
+                  <td> Pin5 (A2)&nbsp </td>
                   <td> <input type="checkbox" name="w_10" value="1"> </td>
                   <td> <input type="checkbox" name="w_10" value="2"> </td>
                   <td> <input type="checkbox" name="w_10" value="4"> </td>
@@ -619,7 +644,7 @@ Analog:
            <tr>
               <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
                   <input type='hidden' name='w_11' value='0'>
-                  <td> A3 &nbsp </td>
+                  <td> Pin6 (A3)&nbsp </td>
                   <td> <input type="checkbox" name="w_11" value="1"> </td>
                   <td> <input type="checkbox" name="w_11" value="2"> </td>
                   <td> <input type="checkbox" name="w_11" value="4"> </td>
@@ -627,34 +652,6 @@ Analog:
                   <td> <input type="checkbox" name="w_11" value="16"> </td>
                   <td> <input type="checkbox" name="w_11" value="64"> </td>
                   <td> <input type="checkbox" name="w_11" value="128"> </td>
-                  <td> <input type='submit' value='save'></td>
-              </form>
-           </tr>
-           <tr>
-               <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
-                  <input type='hidden' name='w_12' value='0'>
-                  <td> A4 &nbsp </td>
-                  <td> <input type="checkbox" name="w_12" value="1"> </td>
-                  <td> <input type="checkbox" name="w_12" value="2"> </td>
-                  <td> <input type="checkbox" name="w_12" value="4"> </td>
-                  <td> <input type="checkbox" name="w_12" value="8"> </td>
-                  <td> <input type="checkbox" name="w_12" value="16"> </td>
-                  <td> <input type="checkbox" name="w_12" value="64"> </td>
-                  <td> <input type="checkbox" name="w_12" value="128"> </td>
-                  <td> <input type='submit' value='save'></td>
-              </form>
-           </tr>
-           <tr>
-               <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
-                  <input type='hidden' name='w_13' value='0'>
-                  <td> A5 &nbsp </td>
-                  <td> <input type="checkbox" name="w_13" value="1"> </td>
-                  <td> <input type="checkbox" name="w_13" value="2"> </td>
-                  <td> <input type="checkbox" name="w_13" value="4"> </td>
-                  <td> <input type="checkbox" name="w_13" value="8"> </td>                  
-                  <td> <input type="checkbox" name="w_13" value="16"> </td>
-                  <td> <input type="checkbox" name="w_13" value="64"> </td>
-                  <td> <input type="checkbox" name="w_13" value="128"> </td>
                   <td> <input type='submit' value='save'></td>
               </form>
            </tr>
@@ -913,7 +910,7 @@ void handleconfiguregwrfm69()
           SELECTED_FREQ(RF69_315MHZ), SELECTED_FREQ(RF69_433MHZ),
           SELECTED_FREQ(RF69_868MHZ), SELECTED_FREQ(RF69_915MHZ),
           (GC_IS_RFM69HCW)?"checked":"", (GC_IS_RFM69HCW)?"":"checked",
-          pGC->rfmapname, pGC->updateUser, pGC->updatePassword
+          pGC->rfmapname, pGC->mdnsname, pGC->updateUser, pGC->updatePassword
           );
   #else
       snprintf_P(formFinal, formFinal_len, CONFIGUREGWRFM69_HTML,
@@ -921,7 +918,7 @@ void handleconfiguregwrfm69()
           SELECTED_FREQ(RF69_315MHZ), SELECTED_FREQ(RF69_433MHZ),
           SELECTED_FREQ(RF69_868MHZ), SELECTED_FREQ(RF69_915MHZ),
           (GC_IS_RFM69HCW)?"checked":"", (GC_IS_RFM69HCW)?"":"checked",
-          pGC->rfmapname, HiddenString, HiddenString
+          pGC->rfmapname, pGC->mdnsname, HiddenString, HiddenString
           );
   #endif
   webServer.send(200, "text/html", formFinal);
@@ -1029,6 +1026,13 @@ void handleconfiguregwrfm69Write()
             }
         }
     }
+    else if (argNamei == "mdnsname") {
+      const char *mdns = argi.c_str();
+      if (strcmp(mdns, pGC->mdnsname) != 0) {
+        commit_required = true;
+        strcpy(pGC->mdnsname, mdns);
+      }
+    }
   }
   handleRoot();
   if (commit_required) {
@@ -1046,11 +1050,11 @@ void handleconfiguregwmqtt()
   if (formFinal == NULL) {}
   #if showKeysInWeb == true
     snprintf_P(formFinal, formFinal_len, CONFIGUREGWMQTT_HTML,
-        pGC->mqttbroker, pGC->mqttclientname, pGC->mqttUser, pGC->mqttPassword, pGC->mdnsname, HiddenString
+        pGC->mqttbroker, pGC->mqttclientname, pGC->mqttUser, pGC->mqttPassword, HiddenString
         );
   #else
     snprintf_P(formFinal, formFinal_len, CONFIGUREGWMQTT_HTML,
-        HiddenString, pGC->mqttclientname,  HiddenString, HiddenString, pGC->mdnsname, HiddenString
+        HiddenString, pGC->mqttclientname,  HiddenString, HiddenString, HiddenString
         );
   #endif
   webServer.send(200, "text/html", formFinal);
@@ -1086,13 +1090,6 @@ void handleconfiguregwmqttWrite()
       if (strcmp(client, pGC->mqttclientname) != 0) {
         commit_required = true;
         strcpy(pGC->mqttclientname, client);
-      }
-    }
-    else if (argNamei == "mdnsname") {
-      const char *mdns = argi.c_str();
-      if (strcmp(mdns, pGC->mdnsname) != 0) {
-        commit_required = true;
-        strcpy(pGC->mdnsname, mdns);
       }
     }
     else if (argNamei == "mqttclientpassword"){
