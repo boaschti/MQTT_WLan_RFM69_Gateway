@@ -140,8 +140,10 @@ void wifi_setup(void) {
   //here  "AutoConnectAP"
   //and goes into a blocking loop awaiting configuration
   
+  wifiManager.setConfigPortalTimeout(180);
+  
   while(!wifiManager.autoConnect(pGC->rfmapname)) {
-    delay(60000);
+    
   }
 
   Serial.println("connected");
