@@ -1654,6 +1654,14 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
         reachableNode[varNumber] &= ~(1<<bitNumber);
         mqttClient.unsubscribe(nodeRx_topic);
     }else if (message[0] == 19){
+        //subsrcibe node to Backup topic to get old Messages on Node Startup (Node sends 20 on startup, Gateway puts sended messages from nodeRx_topic to NodeBackup_topic_temp)
+        Serial.println("Command 19 subscribe on:");
+        Serial.println(nodeRx_topic);
+        Serial.println(NodeBackup_topic_temp);
+        reachableNode[varNumber] |= (1<<bitNumber);
+        mqttClient.subscribe(nodeRx_topic);
+        mqttClient.subscribe(NodeBackup_topic_temp);
+    }else if (message[0] == 20){
         //remember that node is reachable, this kommand is sent by nodes without sleep at startup
         Serial.println("Command 20 unsubscribe on:");
         Serial.println(nodeRx_topic);
