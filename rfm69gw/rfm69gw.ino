@@ -38,7 +38,7 @@
 
 
 
-#define SERIAL_BAUD   57600
+#define SERIAL_BAUD   115200
 
 #include <ESP8266WiFi.h>
 #include <RFM69.h>                //https://www.github.com/lowpowerlab/rfm69
@@ -1185,6 +1185,7 @@ void handleconfigurenodeWrite(){
   strcat(temptopic, "/");
   strncat(temptopic, argnameStr,7);
 
+  Serial.println("built message");
   char jsonMessage[35] = "{\"";
   if (sendData){
       //built json Message      
@@ -1241,6 +1242,7 @@ void handleconfigurenodeWrite(){
       Serial.println("RFM is set to normal Mode");
   }else if (sendData){
       if (strncmp(tempNodeId, "", 5) != 0) {
+          Serial.println("send message");
           strcat(jsonMessage, "}");
           mqttClient.publish(temptopic, jsonMessage, true);
       }
@@ -1639,15 +1641,23 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
     if (message[0] == 17){
         //mqttClient.publish("rfmIn", "subscribed Node");
         //remember if node is subscribed
+        Serial.println("Command 17 subscribe on:");
+        Serial.println(nodeRx_topic);
         reachableNode[varNumber] |= (1<<bitNumber);
         mqttClient.subscribe(nodeRx_topic);
     }else if (message[0] == 18){
         //mqttClient.publish("rfmIn", "unsubscribed Node");
         //remember if node is unsubscribed
+        Serial.println("Command 18 unsubscribe on:");
+        Serial.println(nodeRx_topic);    
+        Serial.println(NodeBackup_topic_temp); 
         reachableNode[varNumber] &= ~(1<<bitNumber);
         mqttClient.unsubscribe(nodeRx_topic);
     }else if (message[0] == 19){
         //remember that node is reachable, this kommand is sent by nodes without sleep at startup
+        Serial.println("Command 20 unsubscribe on:");
+        Serial.println(nodeRx_topic);
+        Serial.println(NodeBackup_topic_temp);
         reachableNode[varNumber] |= (1<<bitNumber);
     }else{
         const char *p_start, *p_end;
