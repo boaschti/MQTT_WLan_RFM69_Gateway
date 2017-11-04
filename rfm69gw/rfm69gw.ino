@@ -1489,20 +1489,40 @@ void callback(char* topic, byte* payload, unsigned int length) {
                 itoa(nodeAdress, temp2, 10);
                 strncat(temp, temp2, 4);
                 strncat(temp, "\"",3);
-				mqttClient.publish("rfmIn", temp);
-			}else{
-				//send 0 Byte retained Message to delete retained messages
-				mqttClient.publish(topic, "", true);
-				Serial.println("Message sended to Node");
-			}
-		}else{
-			//send 0 Byte retained Message to delete retained messages
-			mqttClient.publish(topic, "", true);			
-			Serial.println("Message sended to Node");
-		}
-	}else{
-    Serial.println("Thinking node is not reachable we will not send");
-  }
+                mqttClient.publish("rfmIn", temp);
+            }else{
+                Serial.println("Msg sended to Node");
+                if (strncmp(topic, "rfmBackup", 9) != 0) {
+                    //send 0 Byte retained Message to delete retained messages
+                    Serial.println("Delete orig Msg");
+                    mqttClient.publish(topic, "", true);
+                    //send orig message to backup topic only if its no config reg
+                    if ((strncmp(PayloadBck, "{\"p_", 4) == 0)||(strncmp(PayloadBck , "{\"d",3) == 0)||(strncmp(PayloadBck , "{\"t",3) == 0)){
+                        Serial.println("Store orig Msg");
+                        mqttClient.publish(NodeBackup_topic, PayloadBck, true);
+                    }
+                }
+            }
+        }else{
+            Serial.println("Msg sended to Node");
+            if (strncmp(topic, "rfmBackup", 9) != 0) {
+                //send 0 Byte retained Message to delete retained messages
+                Serial.println("Delete orig Msg");
+                mqttClient.publish(topic, "", true);
+                //send orig message to backup topic only if its no config reg
+                if ((strncmp(PayloadBck, "{\"p_", 4) == 0)||(strncmp(PayloadBck , "{\"d",3) == 0)||(strncmp(PayloadBck , "{\"t",3) == 0)){
+                    Serial.println("Store orig Msg");
+                    mqttClient.publish(NodeBackup_topic, PayloadBck, true);
+                }
+            }
+        }
+    }else if (length > 0){
+        Serial.println(" -> not reachable we will not send");   
+    }else if (length == 0){
+        Serial.println(" -> 0 byte message. We did nothing.");  
+    }else{
+        Serial.println(" -> We did nothing."); 
+    }
 }
 
 void mqtt_setup() {
