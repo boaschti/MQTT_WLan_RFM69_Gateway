@@ -1180,7 +1180,7 @@ void handleconfigurenodeWrite(){
       }
   }
   
-  //built topic
+  Serial.println("built topic");
   char temptopic[30]="rfmOut/";
   char tempNetworkId[5];
   itoa(pGC->networkid, tempNetworkId, 10);
@@ -1194,7 +1194,7 @@ void handleconfigurenodeWrite(){
   char jsonMessage[35] = "{\"";
   if (sendData){
       //built json Message      
-      strncat(jsonMessage, argnameStr, 5);
+      strncat(jsonMessage, argnameStr, 9);
       strcat(jsonMessage, "\":\"");
       strncat(jsonMessage, tempValueChar, 20);
       strcat(jsonMessage, "\"");
@@ -1424,9 +1424,10 @@ void radio_loop(void) {
 // published.
 // #define MQTT_MAX_PACKET_SIZE 256
 
+
 uint8_t getNodeId(char *topic){
     
-    //get the Node Address of the top eg. bla/bla/123 -> returns int8 123
+    //get the Node Address by reading topic eg. bla/bla/123/bla -> returns int8 123
 	char parts[15][20];
 	char *p_start, *p_end;
 	uint8_t i = 0;
