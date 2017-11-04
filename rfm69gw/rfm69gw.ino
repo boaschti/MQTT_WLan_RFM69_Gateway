@@ -1472,16 +1472,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
     uint8_t varNumber = nodeAdress / 32;
     uint8_t bitNumber = varNumber * 32;
     bitNumber = nodeAdress - bitNumber;
-    
-	if ((nodeAdress != 0) && (length > 0) && (reachableNode[varNumber] & (1<<bitNumber))){
-    Serial.println("Thinking node is reachable");
-		if (!radio.sendWithRetry(nodeAdress, payload, length)){
-			//Wir konnten nicht senden-> wir warten und probieren es noch einmal
-			delay(150);
-      Serial.println("Try again");
-			if (!radio.sendWithRetry(nodeAdress, payload, length)){
-				//
-				Serial.println("Error sending Message to Node");
+   
+    if ((nodeAdress != 0) && (length > 0) && (reachableNode[varNumber] & (1<<bitNumber))){
+        Serial.println(" -> reachable");
+        if (!radio.sendWithRetry(nodeAdress, payload, length)){
+            //Wir konnten nicht senden-> wir warten und probieren es noch einmal
+            delay(150);
+            Serial.println("Try again");
+            if (!radio.sendWithRetry(nodeAdress, payload, length)){
+                Serial.println("Error sending Message to Node");
                 char temp[90] ="\"err\":\"sending Message from Topic ";
                 strncat(temp, topic,25);
                 strncat(temp, " to Node ", 10);
