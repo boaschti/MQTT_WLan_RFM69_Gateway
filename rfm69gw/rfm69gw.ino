@@ -467,6 +467,10 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
             <input type='hidden' name='led_0' value='blink'>
             <input type='submit' value='test'><br>
         </form>
+        <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+            <input type='hidden' name='w_0' value='255'>
+            <input type='submit' value='reset Node'><br>
+        </form>
     DIO:
     <table>
         <tbody>
