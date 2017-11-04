@@ -1652,6 +1652,17 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
       
     if (len >= sizeof(payload)) {
         Serial.println("\n\n*** RFM69 packet truncated ***\n");
+    
+    Serial.print("got Msg from node[");
+    Serial.print(senderId);
+    Serial.print("] ");
+    uint8_t length;
+    length = strlen(message);
+    for (unsigned int i = 0; i < length; i++) {
+        Serial.print((char)message[i]);
+    }
+    Serial.println();
+    
     }
     // send received message to all connected web clients
     webSocket.broadcastTXT(message, strlen(message));
@@ -1729,7 +1740,10 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
                 hash[p_end-p_start-1] = 0;
             }
             //mqttClient.publish("debug", "B");
-            p_end = strchr(p_start, ',');          //search , to set pointer
+            p_end = strchr(p_start, ',');               //search , to set pointer
+            if (!p_end){
+                p_end = strchr(p_start, '\}');          //search } if , is not in string to set pointer
+            }
             if (p_end) {                                                                              //copy "R_12":"125"
                 //mqttClient.publish("debug", "C");
                 strcpy(pubPayload, "{");
