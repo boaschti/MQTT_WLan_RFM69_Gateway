@@ -751,6 +751,7 @@ nodeControll:
                     <td> sleepTime &nbsp &nbsp </td>
                     <td> <input type="text" name="w_22" id="value"> </td>
                     <td> <input type='submit' value='save'></td>
+                    <td> set sleepTime to 255 and sleepTimeMulti to 255 -> Watchdog disabled (Powersave 0.1uA) </td>
                 </form>
             </tr>
             <tr>
