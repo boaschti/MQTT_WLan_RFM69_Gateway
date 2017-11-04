@@ -1518,8 +1518,9 @@ void reconnect() {
   //while (!mqttClient.connected()) {//sw
     Serial.print("Attempting MQTT connection...");
     // Attempt to connect
-    if (mqttClient.connect(WiFi.hostname().c_str()), pGC->mqttUser, pGC->mqttPassword) {
+    if (mqttClient.connect(pGC->mqttclientname, pGC->mqttUser, pGC->mqttPassword)) {
       Serial.println("connected");
+      delay(1000);
       // Once connected, publish an announcement...
       mqttClient.publish("rfmIn", "Gateway connected");
       // ... and resubscribe
