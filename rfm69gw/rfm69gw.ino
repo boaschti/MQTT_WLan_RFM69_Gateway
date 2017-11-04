@@ -1654,11 +1654,18 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
         Serial.println("\n\n*** RFM69 packet truncated ***\n");
     }
     // send received message to all connected web clients
-    webSocket.broadcastTXT(payload, strlen(payload));
+    webSocket.broadcastTXT(message, strlen(message));
+    
+    //Serial.println("built rxTopic");
+    char nodeRx_topic[32];
+            //subscribe the topic of the Node to get retained messages from Broker -> Node (sleeping Nodes) sw
+            snprintf(nodeRx_topic, sizeof(nodeRx_topic), "rfmOut/%d/%d/#", pGC->networkid, senderId); //Broker -> Node
 
-	//subscribe the topic of the Node to get retained messages from Broker -> Node (sleeping Nodes) sw
-	snprintf(nodeRx_topic, sizeof(nodeRx_topic), "rfmOut/%d/%d/#", pGC->networkid, senderId); //Broker -> Node
-
+    //Serial.println("built backupTopic");
+    char NodeBackup_topic_temp[32];
+            //subscribe the topic of the Node to get retained messages from Broker -> Node (sleeping Nodes) sw
+            snprintf(NodeBackup_topic_temp, sizeof(NodeBackup_topic_temp), "rfmBackup/%d/%d/#", pGC->networkid, senderId); //Broker -> Node
+            
     uint8_t nodeAdress = getNodeId(nodeRx_topic);
     uint8_t varNumber = nodeAdress / 32;
     uint8_t bitNumber = varNumber * 32;
@@ -1679,6 +1686,7 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
         Serial.println(NodeBackup_topic_temp); 
         reachableNode[varNumber] &= ~(1<<bitNumber);
         mqttClient.unsubscribe(nodeRx_topic);
+        mqttClient.unsubscribe(NodeBackup_topic_temp);
     }else if (message[0] == 19){
         //subsrcibe node to Backup topic to get old Messages on Node Startup (Node sends 20 on startup, Gateway puts sended messages from nodeRx_topic to NodeBackup_topic_temp)
         Serial.println("Command 19 subscribe on:");
@@ -1693,17 +1701,21 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
         Serial.println(nodeRx_topic);
         Serial.println(NodeBackup_topic_temp);
         reachableNode[varNumber] |= (1<<bitNumber);
-    }else{
+        mqttClient.unsubscribe(nodeRx_topic);
+        mqttClient.unsubscribe(NodeBackup_topic_temp);
+    }
+    else if (sendMessage){
         const char *p_start, *p_end;
         uint8_t messageLen = strlen(message);
         p_start = message;
         // Message str input example: "R_12":"125"
         //a message like: "R_12":"125", "g_13":"243" will be publisched on Topic: rfmIn/networkid/nodeid/R_12 Payload: {"R_12":"125"} and on Topic: rfmIn/networkid/nodeid/g_13 Payload: {"g_13":"243"}
         for (uint8_t i =0; i < 10; i++) {
+            char hash[10], pubPayload[50], topic[32];
             //mqttClient.publish("debug", "AA");
             //mqttClient.publish("debug", p_start);
             p_end = strchr(p_start, '/"');          //search first " to set pointer
-            if (p_end) {		
+            if (p_end) {                  
                 //mqttClient.publish("debug", "AB");
                 p_start = p_end;
             }else{
@@ -1712,13 +1724,13 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
             }
             //mqttClient.publish("debug", "A");
             p_end = strchr(p_start+1, '/"');          //search second " to set pointer
-            if (p_end) {							//copy R_12
+            if (p_end) {                                                                              //copy R_12
                 strncpy(hash, p_start+1, p_end-p_start-1);
                 hash[p_end-p_start-1] = 0;
             }
             //mqttClient.publish("debug", "B");
             p_end = strchr(p_start, ',');          //search , to set pointer
-            if (p_end) {							//copy "R_12":"125"
+            if (p_end) {                                                                              //copy "R_12":"125"
                 //mqttClient.publish("debug", "C");
                 strcpy(pubPayload, "{");
                 strncat(pubPayload, p_start, p_end-p_start);
