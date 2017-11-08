@@ -1452,23 +1452,161 @@ uint8_t getNodeId(char *topic){
 }
 
 
-void callback(char* topic, byte* payload, unsigned int length) {
-	
 
-	uint8_t nodeAdress;
-	Serial.print("Message arrived [");
-	Serial.print(topic);
-	Serial.print("] ");
-	for (unsigned int i = 0; i < length; i++) {
-		Serial.print((char)payload[i]);
-	}
-	Serial.println();
-
-	nodeAdress = getNodeId(topic);
+unsigned long getMessageId(char *message){
+   
+    // Message str input: {"R_12":"125", "R13":123}
+    //Diese folgende Schleife macht aus dem String 3 oder eine vielzahl von 3 NULL terminierte Strings
+    //o.g. message ergibt parts[0] == "R_12" , parts[1] == "/"125/"", parts[2] == "R13", parts[3] == "/"123/"" i == 3
+    char parts[8][20];
+    char *p_start, *p_end;
+    uint8_t i = 0;
+    boolean integervalue;
+    p_start = message;
+    while(1) {
+        p_end = strchr(p_start, '/"');
+        if (p_end) {                                   //search first " to set pointer
+            p_start = p_end;
+            Serial.println("Name found");
+        }
+        p_end = strchr(p_start + 1, '/"');                 //search second " to set pointer
+        if ((p_end != p_start)&& p_end && p_start) {        //be shure that Name is found              
+            Serial.print("copy Name ");
+            strncpy(parts[i], p_start+1, p_end-p_start-1);  //copy "R_12"
+            Serial.println("Ok");
+            parts[i][p_end-p_start-1] = 0;
+            i++;
+            p_start = p_end + 1;
+            Serial.print("search :");
+            p_end = strchr(p_start, ':');
+            if (p_end) {                               //copy "/"125/""
+                Serial.println(" found");
+                p_start = p_end + 1;
+                Serial.print("search , ");
+                p_end = strchr(p_start, ',');
+                if (!p_end){
+                    Serial.print("not found search } ");
+                    p_end = strchr(p_start, '/}'); //if no " is in String then search }
+                }
+                if (p_end) {                           //prepare to search next "
+                    Serial.println("found");
+                    Serial.print("Copy value ");
+                    strncpy(parts[i], p_start, p_end-p_start);
+                    parts[i][p_end-p_start] = 0;
+                    Serial.println("Ok");
+                    i++;
+                    p_start = p_end + 1;
+                    p_end = strchr(p_start, '/"');     //search next " to set pointer
+                    if (!p_end){
+                        Serial.println("No Name found");
+                        p_end = strchr(p_start, '/}'); //if no " is in String then search }
+                    }
+                    if (p_end) {                   
+                        p_start = p_end;
+                    }
+                }else{
+                    Serial.println("No , and } found");
+                    strncpy(parts[i], p_start, 20);
+                    i++;
+                    p_start = p_end;
+                    break;
+                }
+            }
+        }
+        else {
+            break;
+        }
+    }
     
-	Serial.print("Nodeadress: ");
-	Serial.println(nodeAdress);
+    
+    uint8_t listLen = 0;
+    if (i){
+        listLen = i - 1;
+    }
+    
+    unsigned long messageId = 0x00000000UL;
+    
+    if (listLen){
+        for (i = 0; i <= listLen; i++){
+            Serial.print("part ");
+            Serial.print(i);
+            Serial.print("  ");
+            Serial.println(parts[i]);
+        }
+        
+        Serial.print("listLen ");
+        Serial.println(listLen);
+    
+    
+    
+        for (uint8_t i=0; i<=listLen; i++){
+            if (strcmp(parts[i] , "id") == 0){
+                messageId = atoi(parts[i+1]);
+                Serial.print("id in Msg found: ");
+                Serial.println(messageId);
+            }
+        }
+    }
+    
+    Serial.println("return now");
+    
+    //messageId = 0x00000000UL;
+    return messageId;
+}
 
+
+
+void callback(char* topic, byte* payload, unsigned int length) {
+    
+    char NodeBackup_topic[32];
+    char PayloadBck[MQTT_MAX_PACKET_SIZE+1];
+    uint8_t nodeAdress;
+
+    Serial.print("Message arrived [");
+    Serial.print(topic);
+    Serial.print("] ");
+    for (unsigned int i = 0; i < length; i++) {
+        Serial.print((char)payload[i]);
+        PayloadBck[i] = payload[i];
+    }
+    Serial.println();
+    PayloadBck[length] = 0;
+ 
+    nodeAdress = getNodeId(topic);
+    Serial.print("Nodeadress: ");
+    Serial.print(nodeAdress);
+
+    char hash[10] = "0";
+    if (length > 0){
+        const char *p_start, *p_end;
+        //byte *p_start, *p_end;
+        p_start = (char*)payload;
+        // Message str input example: "R_12":"125"
+        //a message like: "R_12":"125", "g_13":"243" will be publisched on Topic: rfmIn/networkid/nodeid/R_12 Payload: {"R_12":"125"} and on Topic: rfmIn/networkid/nodeid/g_13 Payload: {"g_13":"243"}
+        for (uint8_t i =0; i < 4; i++) {
+            //mqttClient.publish("debug", "AA");
+            //mqttClient.publish("debug", p_start);
+            p_end = strchr(p_start, '/"');          //search first " to set pointer
+            if (p_end) {                  
+                //mqttClient.publish("debug", "AB");
+                p_start = p_end;
+            }else{
+                //mqttClient.publish("debug", "AC");
+                break;
+            }
+            //mqttClient.publish("debug", "A");
+            p_end = strchr(p_start+1, '/"');          //search second " to set pointer
+            if (p_end) {                                                                              //copy R_12
+                strncpy(hash, p_start+1, p_end-p_start-1);
+                hash[p_end-p_start-1] = 0;
+                break;
+            }
+        }
+    }
+ 
+    //subscribe the topic of the Node to get retained messages from Broker -> Node (sleeping Nodes) sw
+    snprintf(NodeBackup_topic, sizeof(NodeBackup_topic), "rfmBackup/%d/%d/%s", pGC->networkid, nodeAdress, hash); //Broker -> Node
+            
     uint8_t varNumber = nodeAdress / 32;
     uint8_t bitNumber = varNumber * 32;
     bitNumber = nodeAdress - bitNumber;
@@ -1590,68 +1728,13 @@ struct _nodestats *get_nodestats(uint8_t nodeID)
 
 void updateClients(uint8_t senderId, int32_t rssi, const char *message)
 {
-  char nodeRx_topic[32];
-  nodestats_t *ns;
-  ns = get_nodestats(senderId);
-  if (ns == NULL) {
-    Serial.println("\n\n*** updatedClients failed ***\n");
-    return;
-  }
-  unsigned long sequenceChange, newMessageSequence;
-  static const char PROGMEM JSONtemplate[] =
-	R"({"rxMsgCnt":%lu,"rxMsgMiss":%lu,"rxMsgDup":%lu,"rssi":%d})";
-    //R"({"msgType":"status","rxMsgCnt":%lu,"rxMsgMiss":%lu,"rxMsgDup":%lu,"senderId":%d,"rssi":%d,"message":"%s"})";
-  char payload[192], topic[32], hash[10], pubPayload[50];
-  char infoPayload[192], infoTopic[32];
-
-  //Serial.printf("\r\nnode %d msg %s\r\n", senderId, message);
-  newMessageSequence = strtoul(message, NULL, 10);
-  ns->recvMessageCount++;
-  //Serial.printf("nms %lu rmc %lu rms %lu\r\n",
-  //    newMessageSequence, ns->recvMessageCount, ns->recvMessageSequence);
-  if (ns->recvMessageCount != 1) {
-    // newMessageSequence == 0 means the sender just start up.
-    // Or the counter wrapped. But the counter is uint32_t so
-    // that will take a very long time.
-    if (newMessageSequence != 0) {
-      if (newMessageSequence == ns->recvMessageSequence) {
-        ns->recvMessageDuplicate++;
-      }
-      else {
-        if (newMessageSequence > ns->recvMessageSequence) {
-          sequenceChange = newMessageSequence - ns->recvMessageSequence;
-        }
-        else {
-          sequenceChange = 0xFFFFFFFFUL - (ns->recvMessageSequence - newMessageSequence);
-        }
-        if (sequenceChange > 1) {
-          ns->recvMessageMissing += sequenceChange - 1;
-        }
-      }
+    
+    nodestats_t *ns;
+    ns = get_nodestats(senderId);
+    if (ns == NULL) {
+        Serial.println("\n\n*** updatedClients failed ***\n");
+        return;
     }
-  }
-  ns->recvMessageSequence = newMessageSequence;
-  //Serial.printf("nms %lu rmc %lu rms %lu\r\n",
-  //    newMessageSequence, ns->recvMessageCount, ns->recvMessageSequence);
-
-  // Send using JSON format (http://www.json.org/)
-  // The JSON will look like this:
-  // {
-  //   "rxMsgCnt": 123,
-  //   "rxMsgMiss": 0,
-  //   "rxMsgDup": 0,
-  //   "senderId": 12,
-  //   "rssi": -30,
-  //   "message": "Hello World #1234"
-  // }
-    size_t len = snprintf_P(infoPayload, sizeof(infoPayload), JSONtemplate,
-      ns->recvMessageCount, ns->recvMessageMissing,
-      ns->recvMessageDuplicate, rssi);
-    len = snprintf(infoTopic, sizeof(infoTopic), "rfmIn/%d/%d/rxInfo", pGC->networkid, senderId); //Node -> Broker //sw      
-      
-      
-    if (len >= sizeof(payload)) {
-        Serial.println("\n\n*** RFM69 packet truncated ***\n");
     
     Serial.print("got Msg from node[");
     Serial.print(senderId);
@@ -1663,7 +1746,73 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
     }
     Serial.println();
     
+    unsigned long sequenceChange, newMessageSequence;
+    static const char PROGMEM JSONtemplate[] =
+        R"({"rxMsgCnt":%lu,"rxMsgMiss":%lu,"rxMsgDup":%lu,"rssi":%d})";
+        //R"({"msgType":"status","rxMsgCnt":%lu,"rxMsgMiss":%lu,"rxMsgDup":%lu,"senderId":%d,"rssi":%d,"message":"%s"})";
+    boolean sendMessage = true; // true to support old Nodes
+ 
+    //Serial.printf("\r\nnode %d msg %s\r\n", senderId, message);
+    //newMessageSequence = strtoul(message, NULL, 10);
+    Serial.print("getID");
+    newMessageSequence = getMessageId((char*)message);
+    Serial.println("->OK: ");
+    //newMessageSequence = 0x00000000UL;
+    ns->recvMessageCount++;
+    //Serial.printf("nms %lu rmc %lu rms %lu\r\n",
+    //Serial.println("Aa");
+    //    newMessageSequence, ns->recvMessageCount, ns->recvMessageSequence);
+    if (ns->recvMessageCount != 1) {
+        //Serial.println("A");
+        // newMessageSequence == 0 means the sender just start up.
+        // Or the counter wrapped. But the counter is uint32_t so
+        // that will take a very long time.
+        if (newMessageSequence != 0) {
+            Serial.println("B");
+            if (newMessageSequence == ns->recvMessageSequence) {
+                ns->recvMessageDuplicate++;
+                // we will not send to server if msg is dublicated
+                sendMessage = false;
+                Serial.println("c");
+                sequenceChange = 0;
+            }else if (ns->recvMessageSequence){   //if recvMessageSequence = 0 we assume that gw is started and ists the first msg of the node
+                if (newMessageSequence > ns->recvMessageSequence) {
+                    sequenceChange = newMessageSequence - ns->recvMessageSequence;
+                    Serial.println("d");
+                    Serial.println(newMessageSequence);
+                    Serial.println(ns->recvMessageSequence);
+                    Serial.println(sequenceChange);
+                }else{
+                    Serial.println("e");
+                    // we will not send to server if msg is a old msg
+                    sendMessage = false;
+                    sequenceChange = 0xFFFFFFFFUL - (ns->recvMessageSequence - newMessageSequence);
+                }   
+            }else{
+                Serial.println("f");
+                sequenceChange = 1;
+            }
+            if (sequenceChange > 1) {
+                Serial.println("g");
+                ns->recvMessageMissing += sequenceChange - 1;
+            }
+        }
     }
+    ns->recvMessageSequence = newMessageSequence;
+    //Serial.printf("nms %lu rmc %lu rms %lu\r\n",
+    //    newMessageSequence, ns->recvMessageCount, ns->recvMessageSequence);
+ 
+    // Send using JSON format (http://www.json.org/)
+    // The JSON will look like this:
+    // {
+    //   "rxMsgCnt": 123,
+    //   "rxMsgMiss": 0,
+    //   "rxMsgDup": 0,
+    //   "senderId": 12,
+    //   "rssi": -30,
+    //   "message": "Hello World #1234"
+    // }  
+    
     // send received message to all connected web clients
     webSocket.broadcastTXT(message, strlen(message));
     
@@ -1760,26 +1909,28 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
                 i = 20;
                 p_start = p_end - 1;
             }
-
+ 
             //mqttClient.publish("debug", "E");
             // mqtt publish the same message
-            len = snprintf(topic, sizeof(topic), "rfmIn/%d/%d/%s", pGC->networkid, senderId, hash); //Node -> Broker //sw
+            size_t len = snprintf(topic, sizeof(topic), "rfmIn/%d/%d/%s", pGC->networkid, senderId, hash); //Node -> Broker //sw
             if (len >= sizeof(topic)) {
                 Serial.println("\n\n*** MQTT topic truncated ***\n");
-            }
-            if ((strlen(payload)+1+strlen(topic)+1) > MQTT_MAX_PACKET_SIZE) {
-                Serial.println("\n\n*** MQTT message too long! ***\n");
-            }                    
+            }               
             if (!mqttClient.publish(topic, pubPayload, true)) {
                 Serial.println("\n\n*** mqtt publish failed ***\n");
-            }       
-        }
-        //Serial.printf("topic [%s] message [%s]\r\n", topic, payload);
-        //mqttClient.publish("debug", "F");
-        if (!mqttClient.publish(infoTopic, infoPayload, true)) {
-            Serial.println("\n\n*** mqtt publish rxInfo failed ***\n");
-        }        
+            }      
+        }     
+    }else{
+        Serial.println("\n\n*** Replay attac? Message discarded! ***\n");
     }
+    
+    //Serial.println("built info payload");
+    char infoPayload[192], infoTopic[32];
+    snprintf_P(infoPayload, sizeof(infoPayload), JSONtemplate,
+      ns->recvMessageCount, ns->recvMessageMissing,
+      ns->recvMessageDuplicate, rssi);
+    snprintf(infoTopic, sizeof(infoTopic), "rfmIn/%d/%d/rxInfo", pGC->networkid, senderId); //Node -> Broker //sw   
+    mqttClient.publish(infoTopic, infoPayload, true);
 }
 
 void setup() {
