@@ -614,8 +614,8 @@ Analog:
                   <td> <input type="checkbox" name="w_13" value="4"> </td>
                   <td> <input type="checkbox" name="w_13" value="8"> </td>                  
                   <td> <input type="checkbox" name="w_13" value="16"> </td>
+                  <td> <input type="checkbox" name="w_13" value="32"> </td>
                   <td> <input type="checkbox" name="w_13" value="64"> </td>
-                  <td> <input type="checkbox" name="w_13" value="128"> </td>
                   <td> <input type='submit' value='save'></td>
               </form>
            </tr>
@@ -628,8 +628,8 @@ Analog:
                   <td> <input type="checkbox" name="w_12" value="4"> </td>
                   <td> <input type="checkbox" name="w_12" value="8"> </td>
                   <td> <input type="checkbox" name="w_12" value="16"> </td>
+                  <td> <input type="checkbox" name="w_12" value="32"> </td>
                   <td> <input type="checkbox" name="w_12" value="64"> </td>
-                  <td> <input type="checkbox" name="w_12" value="128"> </td>
                   <td> <input type='submit' value='save'></td>
               </form>
            </tr>
@@ -642,8 +642,8 @@ Analog:
                   <td> <input type="checkbox" name="w_10" value="4"> </td>
                   <td> <input type="checkbox" name="w_10" value="8"> </td>
                   <td> <input type="checkbox" name="w_10" value="16"> </td>
+                  <td> <input type="checkbox" name="w_10" value="32"> </td>
                   <td> <input type="checkbox" name="w_10" value="64"> </td>
-                  <td> <input type="checkbox" name="w_10" value="128"> </td>
                   <td> <input type='submit' value='save'></td>
               </form>
            </tr>
@@ -656,8 +656,8 @@ Analog:
                   <td> <input type="checkbox" name="w_11" value="4"> </td>
                   <td> <input type="checkbox" name="w_11" value="8"> </td>
                   <td> <input type="checkbox" name="w_11" value="16"> </td>
+                  <td> <input type="checkbox" name="w_11" value="32"> </td>
                   <td> <input type="checkbox" name="w_11" value="64"> </td>
-                  <td> <input type="checkbox" name="w_11" value="128"> </td>
                   <td> <input type='submit' value='save'></td>
               </form>
            </tr>
@@ -689,7 +689,7 @@ digitalOut:
         <tbody>
           <tr>
               <td> &nbsp &nbsp </td>
-              <td> free &nbsp &nbsp </td>
+              <td> lockThermostate &nbsp &nbsp </td>
               <td> free &nbsp &nbsp </td>
               <td> free &nbsp &nbsp </td>
               <td> ssd1306_64x48 &nbsp &nbsp </td>
@@ -719,6 +719,8 @@ nodeControll:
                 <td> sensorPowerSleep &nbsp &nbsp </td>
                 <td> debugLed &nbsp &nbsp </td>
                 <td> displayAlwaysOn &nbsp &nbsp </td>
+                <td> delOldData &nbsp &nbsp </td>
+                <td> sendAgain &nbsp &nbsp </td>
             </tr>
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
@@ -729,6 +731,8 @@ nodeControll:
                     <td> <input type="checkbox" name="w_20" value="4"> </td>
                     <td> <input type="checkbox" name="w_20" value="8"> </td>
                     <td> <input type="checkbox" name="w_20" value="16"> </td>
+                    <td> <input type="checkbox" name="w_20" value="32"> </td>
+                    <td> <input type="checkbox" name="w_20" value="64"> </td>
                     <td> <input type='submit' value='save'></td>
                 </form>
             </tr>
@@ -1914,14 +1918,14 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
             // mqtt publish the same message
             size_t len = snprintf(topic, sizeof(topic), "rfmIn/%d/%d/%s", pGC->networkid, senderId, hash); //Node -> Broker //sw
             if (len >= sizeof(topic)) {
-                Serial.println("\n\n*** MQTT topic truncated ***\n");
+                Serial.println("\n*** MQTT topic truncated ***\n");
             }               
             if (!mqttClient.publish(topic, pubPayload, true)) {
-                Serial.println("\n\n*** mqtt publish failed ***\n");
+                Serial.println("\n*** mqtt publish failed ***\n");
             }      
         }     
     }else{
-        Serial.println("\n\n*** Replay attac? Message discarded! ***\n");
+        Serial.println("*** Message dublicated! -> discarded! ***");
     }
     
     //Serial.println("built info payload");
