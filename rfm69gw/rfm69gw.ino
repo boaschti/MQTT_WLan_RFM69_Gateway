@@ -755,21 +755,22 @@ nodeControll:
                     <td> sleepTimeMulti &nbsp &nbsp </td>
                     <td> <input type="text" name="w_21" id="value"> </td>
                     <td> <input type='submit' value='save'></td>
+                    <td> sleepTime in sec =  sleepTimeMulti * sleepTime * 8s </td>
                 </form>
             </tr>
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
                     <input type='hidden' name='w_22' value='0'>
-                    <td> sleepTime &nbsp &nbsp </td>
+                    <td> sleepTime 8s &nbsp &nbsp </td>
                     <td> <input type="text" name="w_22" id="value"> </td>
                     <td> <input type='submit' value='save'></td>
-                    <td> set sleepTime to 255 and sleepTimeMulti to 255 -> Watchdog disabled (Powersave 0.1uA) </td>
+                    <td> set sleepTime to 255 and sleepTimeMulti to 255 -> (Powersave 0.1uA) </td>
                 </form>
             </tr>
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
                     <input type='hidden' name='w_23' value='0'>
-                    <td> watchdogTimeout &nbsp &nbsp </td>
+                    <td> watchdogTimeout 5s &nbsp &nbsp </td>
                     <td> <input type="text" name="w_23" id="value"> </td>
                     <td> <input type='submit' value='save'></td>
                 </form>
@@ -777,7 +778,7 @@ nodeControll:
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
                     <input type='hidden' name='w_24' value='0'>
-                    <td> watchdogDelay &nbsp &nbsp </td>
+                    <td> watchdogDelay 5s &nbsp &nbsp </td>
                     <td> <input type="text" name="w_24" id="value"> </td>
                     <td> <input type='submit' value='save'></td>
                 </form>
@@ -817,7 +818,7 @@ nodeControll:
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
                     <input type='hidden' name='w_30' value='0'>
-                    <td> sensorDelay &nbsp &nbsp </td>
+                    <td> sensorDelay 10s &nbsp &nbsp </td>
                     <td> <input type="text" name="w_30" id="value"> </td>
                     <td> <input type='submit' value='save'></td>
                 </form>
