@@ -1471,7 +1471,9 @@ unsigned long getMessageId(char *message){
     // Message str input: {"R_12":"125", "R13":123}
     //Diese folgende Schleife macht aus dem String 3 oder eine vielzahl von 3 NULL terminierte Strings
     //o.g. message ergibt parts[0] == "R_12" , parts[1] == "/"125/"", parts[2] == "R13", parts[3] == "/"123/"" i == 3
-    char parts[8][20];
+    #define partlengh 12
+    #define maxParts 2
+    char parts[maxParts][partlengh];
     char *p_start, *p_end;
     uint8_t i = 0;
     boolean integervalue;
@@ -1483,15 +1485,24 @@ unsigned long getMessageId(char *message){
             Serial.println("Name found");
         }
         p_end = strchr(p_start + 1, '/"');                 //search second " to set pointer
-        if ((p_end != p_start)&& p_end && p_start) {        //be shure that Name is found              
+        if ((p_end != p_start)&& p_end && p_start) {        //be shure that Name is found  
+            if ((i + 2) > maxParts){
+                break;
+            }
             Serial.print("copy Name ");
-            strncpy(parts[i], p_start+1, p_end-p_start-1);  //copy "R_12"
-            Serial.println("Ok");
+            if ((p_end-p_start-1) < partlengh){ 
+                strncpy(parts[i], p_start+1, p_end-p_start-1);  //copy "R_12"
+                Serial.print(parts[i]);
+            }else{
+                Serial.println(" Error");
+                break;
+            }
+            Serial.println(" Ok");
             parts[i][p_end-p_start-1] = 0;
             i++;
             p_start = p_end + 1;
             Serial.print("search :");
-            p_end = strchr(p_start, ':');
+            p_end = strchr(p_start, ':' );
             if (p_end) {                               //copy "/"125/""
                 Serial.println(" found");
                 p_start = p_end + 1;
@@ -1504,7 +1515,12 @@ unsigned long getMessageId(char *message){
                 if (p_end) {                           //prepare to search next "
                     Serial.println("found");
                     Serial.print("Copy value ");
-                    strncpy(parts[i], p_start, p_end-p_start);
+                    if ((p_end-p_start)< partlengh){
+                        strncpy(parts[i], p_start, p_end-p_start);
+                    }else{
+                        Serial.println("Error");
+                        break;
+                    }                    
                     parts[i][p_end-p_start] = 0;
                     Serial.println("Ok");
                     i++;
@@ -1519,7 +1535,7 @@ unsigned long getMessageId(char *message){
                     }
                 }else{
                     Serial.println("No , and } found");
-                    strncpy(parts[i], p_start, 20);
+                    strncpy(parts[i], p_start, partlengh);
                     i++;
                     p_start = p_end;
                     break;
@@ -1548,7 +1564,7 @@ unsigned long getMessageId(char *message){
         }
         
         Serial.print("listLen ");
-        Serial.println(listLen);
+        Serial.println(listLen+1);
     
     
     
@@ -1769,8 +1785,8 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
     //newMessageSequence = strtoul(message, NULL, 10);
     Serial.print("getID");
     newMessageSequence = getMessageId((char*)message);
-    Serial.println("->OK: ");
     //newMessageSequence = 0x00000000UL;
+    Serial.println("->OK: ");
     ns->recvMessageCount++;
     //Serial.printf("nms %lu rmc %lu rms %lu\r\n",
     //Serial.println("Aa");
