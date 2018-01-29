@@ -47,6 +47,7 @@
 
 
 uint32_t reachableNode[8];
+boolean DeviceEnteredConfigAp = false;
 
 char RadioConfig[128];
 
@@ -118,17 +119,16 @@ struct _GLOBAL_CONFIG *pGC;
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager
 
 
+WiFiManager wifiManager;
+
 void configModeCallback (WiFiManager *myWiFiManager) {
-  Serial.println("Entered config mode");
-  Serial.println(WiFi.softAPIP());
-  //if you used auto generated SSID, print it
-  Serial.println(myWiFiManager->getConfigPortalSSID());
+    Serial.println("Entered AP to config");
+    DeviceEnteredConfigAp = true;
 }
 
 void wifi_setup(void) {
   //WiFiManager
   //Local intialization. Once its business is done, there is no need to keep it around
-  WiFiManager wifiManager;
   //reset settings - for testing. Wipes out SSID/password.
   //wifiManager.resetSettings();
 
@@ -143,10 +143,17 @@ void wifi_setup(void) {
   wifiManager.setConfigPortalTimeout(180);
   
   while(!wifiManager.autoConnect(pGC->rfmapname)) {
-    
+      
   }
-
-  Serial.println("connected");
+  
+  // if AP is active we have to reset the Gateway because the wifimanager sends a open AP
+  if (DeviceEnteredConfigAp){
+      Serial.println("reset cause: AP is active");
+      ESP.reset();
+      delay(1000);
+  }else{
+      Serial.println("connected to saved WLAN");
+  }
 }
 
 // ^^^^^^^^^ ESP8266 WiFi ^^^^^^^^^^^
@@ -193,6 +200,7 @@ void eeprom_setup() {
       strncpy_P(pGC->updatePassword, UPDATEPASSWORD, 20);    
       strncpy_P(pGC->mqttUser, MQTTUSER, 20);
       strncpy_P(pGC->mqttPassword, MQTTPASSWORD, 20);       
+      wifiManager.resetSettings();
       Serial.println("checksum");
       pGC->checksum = gc_checksum();
       Serial.println("EEPROM.commit");
