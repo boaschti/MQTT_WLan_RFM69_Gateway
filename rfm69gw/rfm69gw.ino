@@ -1860,6 +1860,14 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
     uint8_t bitNumber = varNumber * 32;
     bitNumber = nodeAdress - bitNumber;
     
+    /*
+      Following commands controlls the gateway to get old msg for backuptopic or normal topic. The gateway also remembers if node is reachable.
+      17: subscribe on NodeTopic / Node reachable
+      18: unsubscribe both topics / Node NOT reachable
+      19: subsrcibe on BackupTopic / Node reachable
+      20: unsubscribe both topics / Node reachable
+    */
+    
     if (message[0] == 17){
         //mqttClient.publish("rfmIn", "subscribed Node");
         //remember if node is subscribed
@@ -1879,19 +1887,19 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
     }else if (message[0] == 19){
         //subsrcibe node to Backup topic to get old Messages on Node Startup (Node sends 20 on startup, Gateway puts sended messages from nodeRx_topic to NodeBackup_topic_temp)
         Serial.println("Command 19 subscribe on:");
-        Serial.println(nodeRx_topic);
         Serial.println(NodeBackup_topic_temp);
+        //Serial.println(nodeRx_topic);
         reachableNode[varNumber] |= (1<<bitNumber);
-        mqttClient.subscribe(nodeRx_topic);
         mqttClient.subscribe(NodeBackup_topic_temp);
+        //mqttClient.subscribe(nodeRx_topic);
     }else if (message[0] == 20){
         //remember that node is reachable, this kommand is sent by nodes without sleep at startup
         Serial.println("Command 20 unsubscribe on:");
         Serial.println(nodeRx_topic);
         Serial.println(NodeBackup_topic_temp);
         reachableNode[varNumber] |= (1<<bitNumber);
-        mqttClient.unsubscribe(nodeRx_topic);
         mqttClient.unsubscribe(NodeBackup_topic_temp);
+        mqttClient.unsubscribe(nodeRx_topic);
     }
     else if (sendMessage){
         const char *p_start, *p_end;
