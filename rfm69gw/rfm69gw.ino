@@ -230,6 +230,23 @@ void mdns_setup(void) {
   Serial.println(WiFi.localIP());
 }
 
+char GatewayConsole_topic[20];
+
+void myPrintln(char *msg){
+  
+    mqttClient.publish(GatewayConsole_topic, msg);
+    
+    Serial.println(msg);
+    
+}
+
+void myPrint(char *msg){
+
+    mqttClient.publish(GatewayConsole_topic, msg);
+    
+    Serial.print(msg);
+    
+} 
 
 static const char PROGMEM INDEX_HTML[] = R"rawliteral(
 <!DOCTYPE html>
@@ -472,7 +489,7 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
             <input type='submit' value='set Node Id to edit'><br>
         </form>
         <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
-            <input type='hidden' name='led_0' value='blink'>
+            <input type='hidden' name='led_2' value='blink'>
             <input type='submit' value='test'><br>
         </form>
         <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
@@ -2014,7 +2031,7 @@ void setup() {
 	digitalWrite(Led_user, 1);//sw
 	delay(500);//sw
 	digitalWrite(Led_user, 0);//sw
-	
+  
     reachableNode[0] = 0xFFFFFFFF;
     reachableNode[1] = 0xFFFFFFFF;
     reachableNode[2] = 0xFFFFFFFF;
@@ -2023,6 +2040,8 @@ void setup() {
     reachableNode[5] = 0xFFFFFFFF;
     reachableNode[6] = 0xFFFFFFFF;
     reachableNode[7] = 0xFFFFFFFF;
+    
+    snprintf(GatewayConsole_topic, sizeof(GatewayConsole_topic), "rfmConsole/%d/%d", pGC->networkid, pGC->nodeid);
     
 	//GPF12 = 48;
 	//GPF13 = 48;
