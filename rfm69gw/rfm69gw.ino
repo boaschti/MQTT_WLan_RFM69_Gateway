@@ -1621,9 +1621,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
     nodeAdress = getNodeId(topic);
     Serial.print("Nodeadress: ");
     Serial.print(nodeAdress);
-
-    char hash[10] = "0";
+    
+    // We search first hash to built backuptopic
     if (length > 0){
+        char hash[10] = "0";
         const char *p_start, *p_end;
         //byte *p_start, *p_end;
         p_start = (char*)payload;
@@ -1648,10 +1649,10 @@ void callback(char* topic, byte* payload, unsigned int length) {
                 break;
             }
         }
+        //subscribe the topic of the Node to get retained messages from Broker -> Node (sleeping Nodes) sw
+        snprintf(NodeBackup_topic, sizeof(NodeBackup_topic), "rfmBackup/%d/%d/%s", pGC->networkid, nodeAdress, hash); //Broker -> Node
     }
  
-    //subscribe the topic of the Node to get retained messages from Broker -> Node (sleeping Nodes) sw
-    snprintf(NodeBackup_topic, sizeof(NodeBackup_topic), "rfmBackup/%d/%d/%s", pGC->networkid, nodeAdress, hash); //Broker -> Node
             
     uint8_t varNumber = nodeAdress / 32;
     uint8_t bitNumber = varNumber * 32;
