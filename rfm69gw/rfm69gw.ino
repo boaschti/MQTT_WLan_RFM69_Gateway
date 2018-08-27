@@ -696,6 +696,7 @@ digitalSensors:
               <td> DS18b20 &nbsp &nbsp </td>
               <td> HC05 &nbsp &nbsp </td>
               <td> BME/P280 &nbsp &nbsp </td>
+              <td> debounceLong &nbsp &nbsp </td>
           </tr>
           <tr>
               <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
@@ -704,6 +705,7 @@ digitalSensors:
                   <td> <input type="checkbox" name="w_15" value="1"> </td>
                   <td> <input type="checkbox" name="w_15" value="2"> </td>
                   <td> <input type="checkbox" name="w_15" value="4"> </td>
+                  <td> <input type="checkbox" name="w_15" value="8"> </td>
                   <td> <input type='submit' value='save'></td>
               </form>
           </tr>
