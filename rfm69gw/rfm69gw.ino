@@ -734,6 +734,23 @@ digitalOut:
           </tr>
         </tbody>
     </table>
+chipSetup:
+    <table>
+        <tbody>
+            <tr>
+                <td> &nbsp &nbsp </td>
+                <td> extCrystal &nbsp &nbsp </td>
+            </tr>
+            <tr>
+                <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+                    <input type='hidden' name='w_19' value='0'>
+                    <td> &nbsp &nbsp  </td>
+                    <td> <input type="checkbox" name="w_19" value="1"> </td>
+                    <td> <input type='submit' value='save'></td>
+                </form>
+            </tr>
+        </tbody>
+    </table>
 nodeControll:
     <table>
         <tbody>
@@ -746,6 +763,7 @@ nodeControll:
                 <td> displayAlwaysOn &nbsp &nbsp </td>
                 <td> delOldData &nbsp &nbsp </td>
                 <td> sendAgain &nbsp &nbsp </td>
+                <td> DisplayLongOn &nbsp &nbsp </td>
             </tr>
             <tr>
                 <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
@@ -758,11 +776,13 @@ nodeControll:
                     <td> <input type="checkbox" name="w_20" value="16"> </td>
                     <td> <input type="checkbox" name="w_20" value="32"> </td>
                     <td> <input type="checkbox" name="w_20" value="64"> </td>
+                    <td> <input type="checkbox" name="w_20" value="128"> </td>
                     <td> <input type='submit' value='save'></td>
                 </form>
             </tr>
         </tbody>
     </table>
+
  
     <table>
         <tbody>
