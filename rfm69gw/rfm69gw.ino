@@ -288,7 +288,7 @@ function start() {
             '<th>Packets</th>' +
             '<th>Miss</th>' +
             '<th>Dup</th>' +
-            '<th>Last</th>' +
+            '<th>Message</th>' +
             '</tr>');
         for (var i = 0; i <= 255; i++) {
           if (rfm69nodes[i]) {
@@ -624,7 +624,7 @@ Analog:
               <td> &nbsp &nbsp </td>
               <td> plant &nbsp &nbsp </td>
               <td> ldr &nbsp &nbsp </td>
-              <td> rain &nbsp &nbsp </td>
+              <td> fuelHigh &nbsp &nbsp </td>
               <td> raw &nbsp &nbsp </td>
               <td> Volt &nbsp &nbsp </td>
               <td> *2 &nbsp &nbsp </td>
@@ -1816,9 +1816,6 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
     Serial.println();
     
     unsigned long sequenceChange, newMessageSequence;
-    static const char PROGMEM JSONtemplate[] =
-        R"({"rxMsgCnt":%lu,"rxMsgMiss":%lu,"rxMsgDup":%lu,"rssi":%d})";
-        //R"({"msgType":"status","rxMsgCnt":%lu,"rxMsgMiss":%lu,"rxMsgDup":%lu,"senderId":%d,"rssi":%d,"message":"%s"})";
     boolean sendMessage = true; // true to support old Nodes
  
     //Serial.printf("\r\nnode %d msg %s\r\n", senderId, message);
@@ -1882,8 +1879,6 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
     //   "message": "Hello World #1234"
     // }  
     
-    // send received message to all connected web clients
-    webSocket.broadcastTXT(message, strlen(message));
     
     //Serial.println("built rxTopic");
     char nodeRx_topic[32];
@@ -1908,6 +1903,8 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
       20: unsubscribe both topics / Node reachable
     */
     
+    bool command = false;
+    
     if (message[0] == 17){
         //mqttClient.publish("rfmIn", "subscribed Node");
         //remember if node is subscribed
@@ -1915,6 +1912,7 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
         Serial.println(nodeRx_topic);
         reachableNode[varNumber] |= (1<<bitNumber);
         mqttClient.subscribe(nodeRx_topic);
+        command = true;
     }else if (message[0] == 18){
         //mqttClient.publish("rfmIn", "unsubscribed Node");
         //remember if node is unsubscribed
@@ -1924,6 +1922,7 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
         reachableNode[varNumber] &= ~(1<<bitNumber);
         mqttClient.unsubscribe(nodeRx_topic);
         mqttClient.unsubscribe(NodeBackup_topic_temp);
+        command = true;
     }else if (message[0] == 19){
         //subsrcibe node to Backup topic to get old Messages on Node Startup (Node sends 20 on startup, Gateway puts sended messages from nodeRx_topic to NodeBackup_topic_temp)
         Serial.println("Command 19 subscribe on:");
@@ -1932,6 +1931,7 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
         reachableNode[varNumber] |= (1<<bitNumber);
         mqttClient.subscribe(NodeBackup_topic_temp);
         //mqttClient.subscribe(nodeRx_topic);
+        command = true;
     }else if (message[0] == 20){
         //remember that node is reachable, this kommand is sent by nodes without sleep at startup
         Serial.println("Command 20 unsubscribe on:");
@@ -1940,6 +1940,7 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
         reachableNode[varNumber] |= (1<<bitNumber);
         mqttClient.unsubscribe(NodeBackup_topic_temp);
         mqttClient.unsubscribe(nodeRx_topic);
+        command = true;
     }
     else if (sendMessage){
         const char *p_start, *p_end;
@@ -2000,14 +2001,48 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
     }else{
         Serial.println("*** Message dublicated! -> discarded! ***");
     }
+
+    static const char PROGMEM JSONtemplateInfo[] =
+        R"({"rxMsgCnt":%lu,"rxMsgMiss":%lu,"rxMsgDup":%lu,"rssi":%d})";
+    static const char PROGMEM JSONtemplateWeb[] =    
+        R"({"msgType":"status","rxMsgCnt":%lu,"rxMsgMiss":%lu,"rxMsgDup":%lu,"senderId":%d,"rssi":%d,"message":")";
     
     //Serial.println("built info payload");
-    char infoPayload[192], infoTopic[32];
-    snprintf_P(infoPayload, sizeof(infoPayload), JSONtemplate,
+    char infoPayload[255], infoTopic[32];
+    snprintf_P(infoPayload, sizeof(infoPayload), JSONtemplateInfo,
       ns->recvMessageCount, ns->recvMessageMissing,
       ns->recvMessageDuplicate, rssi);
     snprintf(infoTopic, sizeof(infoTopic), "rfmIn/%d/%d/rxInfo", pGC->networkid, senderId); //Node -> Broker //sw   
     mqttClient.publish(infoTopic, infoPayload, true);
+    
+    snprintf_P(infoPayload, sizeof(infoPayload), JSONtemplateWeb,
+      ns->recvMessageCount, ns->recvMessageMissing,
+      ns->recvMessageDuplicate, senderId, rssi);
+    
+    
+    for (uint32_t i = 0; i< strlen(message); i++){
+        
+        if (&message[i] == "\""){
+            strncpy(&message[i], "+");
+        }        
+        /*
+        if (strcmp(infoPayload[i], "\"", 1) == 0){
+            infoPayload[i] = "+"
+        }
+        if(strcmp(infoPayload[i], "}", 1) == 0){
+            infoPayload[i] = "S"
+        }
+        */
+    }
+    
+    if (!command){
+        strncat(infoPayload, message, length);
+    }
+    
+    strncat(infoPayload, "}", 5);
+    // send received message to all connected web clients
+    webSocket.broadcastTXT(infoPayload, strlen(infoPayload));
+    
 }
 
 void setup() {
