@@ -122,7 +122,7 @@ struct _GLOBAL_CONFIG *pGC;
 WiFiManager wifiManager;
 
 void configModeCallback (WiFiManager *myWiFiManager) {
-    Serial.println("Entered AP to config");
+    Serial.println("SW: Entered AP to config");
     DeviceEnteredConfigAp = true;
 }
 
@@ -131,7 +131,8 @@ void wifi_setup(void) {
   //Local intialization. Once its business is done, there is no need to keep it around
   //reset settings - for testing. Wipes out SSID/password.
   //wifiManager.resetSettings();
-
+ 
+  
   //set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
   wifiManager.setAPCallback(configModeCallback);
 
@@ -140,21 +141,52 @@ void wifi_setup(void) {
   //here  "AutoConnectAP"
   //and goes into a blocking loop awaiting configuration
   
-  wifiManager.setConfigPortalTimeout(180);
   
-  while(!wifiManager.autoConnect(pGC->rfmapname)) {
-      
+  wifiManager.setConfigPortalTimeout(1);
+  
+  uint8_t i = 0;
+  bool connected = false;
+  while((i <= 4)) {
+    i++;
+    Serial.println("SW: Try to connect");
+    
+    //if (wifiManager.autoConnect(pGC->apname)){
+    if (wifiManager.connectWifi("","") == WL_CONNECTED){
+        connected = true;
+        Serial.println("SW: connected to saved WLAN dont try again");
+        break;        
+    }else{
+        DeviceEnteredConfigAp = false;
+    }
+  }
+  
+  if (!connected){
+      Serial.println("SW: start Config Portal because we have no connection to saved wlan");
+      wifiManager.setConfigPortalTimeout(360);
+      wifiManager.autoConnect(pGC->rfmapname);
   }
   
   // if AP is active we have to reset the Gateway because the wifimanager sends a open AP
   if (DeviceEnteredConfigAp){
-      Serial.println("reset cause: AP is active");
-      ESP.reset();
-      delay(1000);
+      #ifndef AllowAcessPoint
+          //wifiManager.mode(WIFI_STA); //see https://github.com/kentaylor/WiFiManager/blob/master/examples/ConfigOnSwitch/ConfigOnSwitch.ino#L46
+          Serial.println("SW: reset cause: AP is active");
+          Serial.println("SW: Wait 10 seconds");
+          Serial.print("current IP: ");
+          //Serial.println(wifiManager.localIP());
+          //Serial.println(WiFi.localIP();
+          delay(10000);
+          // ESP.reset dont works first time after serial flashing
+          ESP.reset();
+          while(1);
+      #else
+          Serial.println("SW: not connected to saved WLAN. Run Programm.");
+      #endif
   }else{
-      Serial.println("connected to saved WLAN");
+      Serial.println("SW: connected to saved WLAN");
   }
 }
+
 
 // ^^^^^^^^^ ESP8266 WiFi ^^^^^^^^^^^
 
@@ -2019,22 +2051,22 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
       ns->recvMessageCount, ns->recvMessageMissing,
       ns->recvMessageDuplicate, senderId, rssi);
     
-    
+/*    
     for (uint32_t i = 0; i< strlen(message); i++){
         
         if (&message[i] == "\""){
             strncpy(&message[i], "+");
         }        
-        /*
+
         if (strcmp(infoPayload[i], "\"", 1) == 0){
             infoPayload[i] = "+"
         }
         if(strcmp(infoPayload[i], "}", 1) == 0){
             infoPayload[i] = "S"
         }
-        */
+
     }
-    
+*/
     if (!command){
         strncat(infoPayload, message, length);
     }
