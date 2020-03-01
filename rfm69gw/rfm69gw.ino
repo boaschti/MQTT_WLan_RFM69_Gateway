@@ -166,10 +166,12 @@ void wifi_setup(void) {
       wifiManager.autoConnect(pGC->rfmapname);
   }
   
+  WiFi.mode(WIFI_STA);
+  
   // if AP is active we have to reset the Gateway because the wifimanager sends a open AP
   if (DeviceEnteredConfigAp){
       #ifndef AllowAcessPoint
-          //wifiManager.mode(WIFI_STA); //see https://github.com/kentaylor/WiFiManager/blob/master/examples/ConfigOnSwitch/ConfigOnSwitch.ino#L46
+          WiFi.mode(WIFI_STA); //see https://github.com/kentaylor/WiFiManager/blob/master/examples/ConfigOnSwitch/ConfigOnSwitch.ino#L46
           Serial.println("SW: reset cause: AP is active");
           Serial.println("SW: Wait 10 seconds");
           Serial.print("current IP: ");
@@ -184,6 +186,7 @@ void wifi_setup(void) {
       #endif
   }else{
       Serial.println("SW: connected to saved WLAN");
+      WiFi.mode(WIFI_STA); //see https://github.com/kentaylor/WiFiManager/blob/master/examples/ConfigOnSwitch/ConfigOnSwitch.ino#L46
   }
 }
 
