@@ -38,30 +38,74 @@
 
 
 
-#define SERIAL_BAUD   115200
 
-#include <ESP8266WiFi.h>
-#include <RFM69.h>                //https://www.github.com/lowpowerlab/rfm69
-#include <pgmspace.h>
-#include <PubSubClient.h>
 
+#define userpage_existing
+
+//#define AllowAcessPoint         // opens a acessPoint if saved Wlan is not reachable
+//#define WiFiNotRequired         // if there is no connection -> return from setup_server() (and run main loop) or restart esp until connection
+//#define showKeysInWeb true      // shows keys in WEB page (for debug! not recommendet!!)
+
+#define usersubscribe_existing  //if a UserSubscribe() exists. Else the Server will connect automatically to set Topic
+#define MQTTBrokerChanged_existing  // if a MQTTBrokerChanged() exists you can do sth if Broker is changed via web
+
+#define DeviceName "RF Gateway"
+
+#include "C:\Users\sebas\Documents\ESP8266-Server\ESPServerDefines.h"
+#include "C:\Users\sebas\Documents\ESP8266-Server\ESPServer.h"
+
+#ifdef usersubscribe_existing
+void UserSubscribe(){
+    mqttSubscribeStateTopic();
+}
+#endif // usersubscribe_existing
+
+#ifdef MQTTBrokerChanged_existing
+void MQTTBrokerChanged(){
+    return;  
+}
+#endif // MQTTBrokerChanged_existing
+
+
+
+#ifdef userpage_existing
+static const char PROGMEM USERPAGE_HTML[] = R"rawliteral(
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name = 'viewport' content = 'width = device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable=0'>
+  <title>RFM69 Node Configuration</title>
+  <style>
+    'body { background-color: #808080; font-family: Arial, Helvetica, Sans-Serif; Color: #000000; }'
+  </style>
+</head>
+<body>
+
+    <p><a href="/"><button type="button">Home</button></a>
+</body>
+</html>
+)rawliteral";
+
+
+
+#endif // userpage_existing
+
+
+#include "C:\Users\sebas\Documents\MQTT_Node_RFM69\ProgableNode\RFM69.cpp"
+#include "C:\Users\sebas\Documents\MQTT_Node_RFM69\ProgableNode\RFM69.h"
+#include "C:\Users\sebas\Documents\MQTT_Node_RFM69\ProgableNode\RFM69registers.h"
+
+//#include <RFM69.h>                //https://www.github.com/lowpowerlab/rfm69
+#include <SPI.h>
 
 uint32_t reachableNode[8];
-boolean DeviceEnteredConfigAp = false;
 
 char RadioConfig[128];
 
 // Default values
 const char PROGMEM ENCRYPTKEY[] = "sampleEncryptKey";
-const char PROGMEM MDNS_NAME[] = "rfm69gw1";
-const char PROGMEM MQTT_BROKER[] = "raspberrypi";
-const char PROGMEM RFM69AP_NAME[] = "RFM69-AP";
-//Passwort und Benutzer zum Softwareupdate ueber Browser
 
-const char PROGMEM UPDATEUSER[]		  = "B";//sw
-const char PROGMEM UPDATEPASSWORD[] =	"B";//sw
-const char PROGMEM MQTTPASSWORD[]   = "B";
-const char PROGMEM MQTTUSER[]   = "B";
+//Passwort und Benutzer zum Softwareupdate ueber Browser
 
 #define NEWNODE_NODEID    "254"
 #define NETWORKID		      1  //the same on all nodes that talk to each other
@@ -73,216 +117,71 @@ const char PROGMEM MQTTUSER[]   = "B";
 //#define FREQUENCY      RF69_915MHZ
 #define IS_RFM69HCW		false // set to 'true' if you are using an RFM69HCW module
 #define POWER_LEVEL		31
-#define showKeysInWeb	false
-#define Led_user		0//sw
 
-#define HiddenString "xxx"
+#define Led_user		0
 
-WiFiClient espClient;
-PubSubClient mqttClient(espClient);
 RFM69 radio;
 
-// vvvvvvvvv Global Configuration vvvvvvvvvvv
-#include <EEPROM.h>
+#define GC_POWER_LEVEL    (pUserData->powerlevel & 0x1F)
+#define GC_IS_RFM69HCW  ((pUserData->powerlevel & 0x80) != 0)
 
-struct _GLOBAL_CONFIG {
-  uint32_t    checksum;
-  char        rfmapname[32];
-  char        mqttbroker[32];
-  char        mqttclientname[32];
-  char        mdnsname[32];
-  uint32_t    ipaddress;  // if 0, use DHCP
-  uint32_t    ipnetmask;
-  uint32_t    ipgateway;
-  uint32_t    ipdns1;
-  uint32_t    ipdns2;
+
+
+typedef struct {
   char        encryptkey[16+1];
   uint8_t     networkid;
   uint8_t     nodeid;
   uint8_t     powerlevel; // bits 0..4 power level, bit 7 RFM69HCW 1=true
   uint8_t     rfmfrequency;
-  char        updateUser[20];
-  char        updatePassword[20];
-  char        mqttPassword[20];
-  char        mqttUser[20];  
+} userEEProm_mt;
+userEEProm_mt userEEProm;
+
+userEEProm_mt * pUserData;
+
+
+void UserEEPromSetup(void* eepromPtr) {
+      userEEProm_mt* pUserData = (userEEProm_mt*)eepromPtr;
+      Serial.println("ENCRYPTKEY");
+      strcpy_P(pUserData->encryptkey, ENCRYPTKEY);
+      Serial.println("NETWORKID");
+      pUserData->networkid = NETWORKID;
+      Serial.println("NODEID");
+      pUserData->nodeid = NODEID;
+      Serial.println("powerlevel");
+      pUserData->powerlevel = ((IS_RFM69HCW)?0x80:0x00) | POWER_LEVEL;
+      Serial.println("rfmfrequency");
+      pUserData->rfmfrequency = FREQUENCY;
 };
 
-#define GC_POWER_LEVEL    (pGC->powerlevel & 0x1F)
-#define GC_IS_RFM69HCW  ((pGC->powerlevel & 0x80) != 0)
+uint32_t UserEEPromChecksum(uint32_t checksum, void* eepromPtr) {
+        uint8_t * pUserData = (uint8_t *)eepromPtr;
 
-struct _GLOBAL_CONFIG *pGC;
-// ^^^^^^^^^ Global Configuration ^^^^^^^^^^^
-
-// vvvvvvvvv ESP8266 WiFi vvvvvvvvvvv
-#include <DNSServer.h>
-#include <ESP8266WebServer.h>
-#include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager
-
-
-WiFiManager wifiManager;
-
-void configModeCallback (WiFiManager *myWiFiManager) {
-    Serial.println("SW: Entered AP to config");
-    DeviceEnteredConfigAp = true;
-}
-
-void wifi_setup(void) {
-  //WiFiManager
-  //Local intialization. Once its business is done, there is no need to keep it around
-  //reset settings - for testing. Wipes out SSID/password.
-  //wifiManager.resetSettings();
- 
-  
-  //set callback that gets called when connecting to previous WiFi fails, and enters Access Point mode
-  wifiManager.setAPCallback(configModeCallback);
-
-  //fetches ssid and pass and tries to connect
-  //if it does not connect it starts an access point with the specified name
-  //here  "AutoConnectAP"
-  //and goes into a blocking loop awaiting configuration
-  
-  
-  wifiManager.setConfigPortalTimeout(1);
-  
-  uint8_t i = 0;
-  bool connected = false;
-  while((i <= 4)) {
-    i++;
-    Serial.println("SW: Try to connect");
+        for (uint32_t i = 0; i < sizeof(userEEProm_mt); i++)
+        {
+            checksum += *pUserData++;
+        }
     
-    //if (wifiManager.autoConnect(pGC->apname)){
-    if (wifiManager.connectWifi("","") == WL_CONNECTED){
-        connected = true;
-        Serial.println("SW: connected to saved WLAN dont try again");
-        break;        
-    }else{
-        DeviceEnteredConfigAp = false;
-    }
-  }
-  
-  if (!connected){
-      Serial.println("SW: start Config Portal because we have no connection to saved wlan");
-      wifiManager.setConfigPortalTimeout(360);
-      wifiManager.autoConnect(pGC->rfmapname);
-  }
-  
-  WiFi.mode(WIFI_STA);
-  
-  // if AP is active we have to reset the Gateway because the wifimanager sends a open AP
-  if (DeviceEnteredConfigAp){
-      #ifndef AllowAcessPoint
-          WiFi.mode(WIFI_STA); //see https://github.com/kentaylor/WiFiManager/blob/master/examples/ConfigOnSwitch/ConfigOnSwitch.ino#L46
-          Serial.println("SW: reset cause: AP is active");
-          Serial.println("SW: Wait 10 seconds");
-          Serial.print("current IP: ");
-          //Serial.println(wifiManager.localIP());
-          //Serial.println(WiFi.localIP();
-          delay(10000);
-          // ESP.reset dont works first time after serial flashing
-          ESP.reset();
-          while(1);
-      #else
-          Serial.println("SW: not connected to saved WLAN. Run Programm.");
-      #endif
-  }else{
-      Serial.println("SW: connected to saved WLAN");
-      WiFi.mode(WIFI_STA); //see https://github.com/kentaylor/WiFiManager/blob/master/examples/ConfigOnSwitch/ConfigOnSwitch.ino#L46
-  }
-}
+        return checksum;
+};
 
-
-// ^^^^^^^^^ ESP8266 WiFi ^^^^^^^^^^^
-
-// vvvvvvvvv Global Configuration vvvvvvvvvvv
-uint32_t gc_checksum() {
-  uint8_t *p = (uint8_t *)pGC;
-  uint32_t checksum = 0;
-  p += sizeof(pGC->checksum);
-  for (size_t i = 0; i < (sizeof(*pGC) - 4); i++) {
-    checksum += *p++;
-  }
-  return checksum;
-}
-
-void eeprom_setup() {
-  EEPROM.begin(4096);
-  pGC = (struct _GLOBAL_CONFIG *)EEPROM.getDataPtr();
-  // if checksum bad init GC else use GC values
-  if (gc_checksum() != pGC->checksum) {
-      Serial.println("Factory reset");
-      memset(pGC, 0, sizeof(*pGC));
-      Serial.println("ENCRYPTKEY");
-      strcpy_P(pGC->encryptkey, ENCRYPTKEY);
-      Serial.println("RFM69AP_NAME");
-      strcpy_P(pGC->rfmapname, RFM69AP_NAME);
-      Serial.println("MQTT_BROKER");
-      strcpy_P(pGC->mqttbroker, MQTT_BROKER);
-      Serial.println("MDNS_NAME");
-      strcpy_P(pGC->mdnsname, MDNS_NAME);
-      Serial.println("mqttclientname");
-      //bei der folgenden Zeile haengt sich der Chip auf: Exception (28)
-      //strcpy(pGC->mqttclientname, WiFi.hostname().c_str());
-      Serial.println("NETWORKID");
-      pGC->networkid = NETWORKID;
-      Serial.println("NODEID");
-      pGC->nodeid = NODEID;
-      Serial.println("powerlevel");
-      pGC->powerlevel = ((IS_RFM69HCW)?0x80:0x00) | POWER_LEVEL;
-      Serial.println("rfmfrequency");
-      pGC->rfmfrequency = FREQUENCY;
-      Serial.println("UPDATEPW");
-      strncpy_P(pGC->updateUser, UPDATEUSER, 20);
-      strncpy_P(pGC->updatePassword, UPDATEPASSWORD, 20);    
-      strncpy_P(pGC->mqttUser, MQTTUSER, 20);
-      strncpy_P(pGC->mqttPassword, MQTTPASSWORD, 20);       
-      wifiManager.resetSettings();
-      Serial.println("checksum");
-      pGC->checksum = gc_checksum();
-      Serial.println("EEPROM.commit");
-      EEPROM.commit();
-  }
-}
-// ^^^^^^^^^ Global Configuration ^^^^^^^^^^^
-
-// vvvvvvvvv ESP8266 web sockets vvvvvvvvvvv
-#include <ESP8266mDNS.h>
-
-// URL: http://rfm69gw.local
-MDNSResponder mdns;
-
-void mdns_setup(void) {
-  if (pGC->mdnsname[0] == '\0') return;
-
-  if (mdns.begin(pGC->mdnsname, WiFi.localIP())) {
-    Serial.println("MDNS responder started");
-    mdns.addService("http", "tcp", 80);
-    mdns.addService("ws", "tcp", 81);
-  }
-  else {
-    Serial.println("MDNS.begin failed");
-  }
-  Serial.printf("Connect to http://%s.local or http://", pGC->mdnsname);
-  Serial.println(WiFi.localIP());
-}
 
 char GatewayConsole_topic[20];
 
 void myPrintln(char *msg){
   
-    mqttClient.publish(GatewayConsole_topic, msg);
-    
+    mqttpublish(GatewayConsole_topic, msg);
     Serial.println(msg);
     
 }
 
 void myPrint(char *msg){
 
-    mqttClient.publish(GatewayConsole_topic, msg);
-    
+    mqttpublish(GatewayConsole_topic, msg);
     Serial.print(msg);
     
 } 
 
+/*
 static const char PROGMEM INDEX_HTML[] = R"rawliteral(
 <!DOCTYPE html>
 <html>
@@ -364,26 +263,7 @@ function start() {
 </html>
 )rawliteral";
 
-static const char PROGMEM CONFIGUREGW_HTML[] = R"rawliteral(
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name = "viewport" content = "width = device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable=0">
-  <title>RFM69 Gateway Configuration</title>
-  <style>
-    "body { background-color: #808080; font-family: Arial, Helvetica, Sans-Serif; Color: #000000; }"
-  </style>
-</head>
-<body>
-  <h2>RFM69 Gateway Configuration</h2>
-  <a href="/configGWrfm69"><button type="button">RFM69/GW</button></a>
-  <p>
-  <a href="/configGWmqtt"><button type="button">MQTT</button></a>
-  <p>
-  <a href="/"><button type="button">Home</button></a>
-</body>
-</html>
-)rawliteral";
+*/
 
 static const char PROGMEM CONFIGUREGWRFM69_HTML[] = R"rawliteral(
 <!DOCTYPE html>
@@ -416,51 +296,9 @@ static const char PROGMEM CONFIGUREGWRFM69_HTML[] = R"rawliteral(
     <label for=hcw>RFM69 HCW</label><br>
     <input type='radio' name='rfm69hcw' id="hcw" value="1" %s> True<br>
     <input type='radio' name='rfm69hcw' id="hcw" value="0" %s> False<br>
-    <label>RFM69 AP name</label>
-    <input type='text' name='rfmapname' value="%s" size="32" maxlength="32"><br>
-    <label>DNS name</label>
-    <input type='text' name='mdnsname' value="%s" size="32" maxlength="32"><br>
-    <label>Updater password:</label><br>
-    <label>old user</label>
-    <input type='text' name='olduser' value="%s" size="20" maxlength="20"><br>
-    <label>old password</label>
-    <input type='text' name='oldpassword' value="%s" size="20" maxlength="20"><br>
-    <label>new user</label>
-    <input type='text' name='newuser' size="20" maxlength="20"><br>
-    <label>new password</label>
-    <input type='text' name='newpassword' size="20" maxlength="20"><br>
     <p><input type='submit' value='Save changes'>
   </form>
   <p><a href="/configGW"><button type="button">Cancel</button></a><a href="/configGWreset"><button type="button">Factory Reset</button></a>
-</body>
-</html>
-)rawliteral";
-
-static const char PROGMEM CONFIGUREGWMQTT_HTML[] = R"rawliteral(
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name = "viewport" content = "width = device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable=0">
-  <title>RFM69 Gateway MQTT Configuration</title>
-  <style>
-    "body { background-color: #808080; font-family: Arial, Helvetica, Sans-Serif; Color: #000000; }"
-  </style>
-</head>
-<body>
-  <h3>RFM69 Gateway MQTT Configuration</h3>
-  <form method='POST' action='/configGWmqtt' enctype='multipart/form-data'>
-    <label>MQTT broker</label>
-    <input type='text' name='mqttbroker' value="%s" size="32" maxlength="32"><br>
-    <label>MQTT client name</label>
-    <input type='text' name='mqttclientname' value="%s" size="32" maxlength="32"><br>
-    <label>MQTT client user</label>
-    <input type='text' name='mqttclientuser' value="%s" size="32" maxlength="20"><br>
-    <label>MQTT client password</label>
-    <input type='text' name='mqttclientpassword' value="%s" size="32" maxlength="20"><br>
-    <label>note: if you have seen %s and changed MQTT broker then set RFM69 encrypt key again!</label>
-    <p><input type='submit' value='Save changes'>
-  </form>
-  <p><a href="/configGW"><button type="button">Cancel</button></a>
 </body>
 </html>
 )rawliteral";
@@ -977,87 +815,21 @@ nodeControll:
 </html>
 )rawliteral";
 
-#include <WebSocketsServer.h>     //https://github.com/Links2004/arduinoWebSockets
-#include <Hash.h>
-ESP8266WebServer webServer(80);
-WebSocketsServer webSocket = WebSocketsServer(81);
 
-void webSocketEvent(uint8_t num, int type, uint8_t * payload, size_t length)
+#define SELECTED_FREQ(f)  ((pUserData->rfmfrequency==f)?"selected":"")
+
+
+//void handleconfigureUserWrite(){
+//    handleRoot();
+//}
+//void handleconfigureUser(){
+//    webServersend_P(USERPAGE_HTML);
+//}
+
+
+void handleconfigureUser()
 {
-  Serial.printf("webSocketEvent(%d, %d, ...)\r\n", num, type);
-  switch(type) {
-    case WStype_DISCONNECTED:
-      Serial.printf("[%u] Disconnected!\r\n", num);
-      break;
-    case WStype_CONNECTED:
-      {
-        IPAddress ip = webSocket.remoteIP(num);
-        Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\r\n", num, ip[0], ip[1], ip[2], ip[3], payload);
-        // Send the RFM69 radio configuration one time after connection
-        webSocket.sendTXT(num, RadioConfig, strlen(RadioConfig));
-      }
-      break;
-    case WStype_TEXT:
-      Serial.printf("[%u] get Text: %s\r\n", num, payload);
-
-      // send data to all connected clients
-      //webSocket.broadcastTXT(payload, length);
-      break;
-    case WStype_BIN:
-      Serial.printf("[%u] get binary length: %u\r\n", num, length);
-      //hexdump(payload, length);
-
-      // echo data back to browser
-      //webSocket.sendBIN(num, payload, length);
-      break;
-    default:
-      Serial.printf("Invalid WStype [%d]\r\n", type);
-      break;
-  }
-}
-
-void handleRoot()
-{
-  Serial.print("Free heap="); Serial.println(ESP.getFreeHeap());
-    
-  webServer.send_P(200, "text/html", INDEX_HTML);
-}
-
-void handleNotFound()
-{
-  String message = "File Not Found\n\n";
-  message += "URI: ";
-  message += webServer.uri();
-  message += "\nMethod: ";
-  message += (webServer.method() == HTTP_GET)?"GET":"POST";
-  message += "\nArguments: ";
-  message += webServer.args();
-  message += "\n";
-  for (uint8_t i=0; i<webServer.args(); i++){
-    message += " " + webServer.argName(i) + ": " + webServer.arg(i) + "\n";
-  }
-  webServer.send(404, "text/plain", message);
-}
-
-void handleconfiguregw()
-{
-  webServer.send_P(200, "text/html", CONFIGUREGW_HTML);
-}
-
-// Reset global config back to factory defaults
-void handleconfiguregwreset()
-{
-  pGC->checksum++;
-  EEPROM.commit();
-  ESP.reset();
-  delay(1000);
-}
-
-#define SELECTED_FREQ(f)  ((pGC->rfmfrequency==f)?"selected":"")
-
-void handleconfiguregwrfm69()
-{
-  size_t formFinal_len = strlen_P(CONFIGUREGWRFM69_HTML) + sizeof(*pGC);
+  size_t formFinal_len = strlen_P(CONFIGUREGWRFM69_HTML) + sizeof(*pUserData);
   char *formFinal = (char *)malloc(formFinal_len);
   if (formFinal == NULL) {
     Serial.println("formFinal malloc failed");
@@ -1065,26 +837,26 @@ void handleconfiguregwrfm69()
   }
   #if showKeysInWeb == true
       snprintf_P(formFinal, formFinal_len, CONFIGUREGWRFM69_HTML,
-          pGC->networkid, pGC->nodeid,  pGC->encryptkey, GC_POWER_LEVEL,
+          pUserData->networkid, pUserData->nodeid,  pUserData->encryptkey, GC_POWER_LEVEL,
           SELECTED_FREQ(RF69_315MHZ), SELECTED_FREQ(RF69_433MHZ),
           SELECTED_FREQ(RF69_868MHZ), SELECTED_FREQ(RF69_915MHZ),
           (GC_IS_RFM69HCW)?"checked":"", (GC_IS_RFM69HCW)?"":"checked",
-          pGC->rfmapname, pGC->mdnsname, pGC->updateUser, pGC->updatePassword
+          "blubb", "blubb", "blubb", "blubb"
           );
   #else
       snprintf_P(formFinal, formFinal_len, CONFIGUREGWRFM69_HTML,
-          pGC->networkid, pGC->nodeid, HiddenString, GC_POWER_LEVEL,
+          pUserData->networkid, pUserData->nodeid, HiddenString, GC_POWER_LEVEL,
           SELECTED_FREQ(RF69_315MHZ), SELECTED_FREQ(RF69_433MHZ),
           SELECTED_FREQ(RF69_868MHZ), SELECTED_FREQ(RF69_915MHZ),
           (GC_IS_RFM69HCW)?"checked":"", (GC_IS_RFM69HCW)?"":"checked",
-          pGC->rfmapname, pGC->mdnsname, HiddenString, HiddenString
+          "blubb", "blubb", HiddenString, HiddenString
           );
   #endif
-  webServer.send(200, "text/html", formFinal);
+  webServersend_P(USERPAGE_HTML);
   free(formFinal);
 }
 
-void handleconfiguregwrfm69Write()
+void handleconfigureUserWrite()
 {
   bool commit_required = false;
   bool oldPasswordSeen = false;
@@ -1099,196 +871,58 @@ void handleconfiguregwrfm69Write()
     argNamei = webServer.argName(i);
     if (argNamei == "networkid") {
       uint8_t formnetworkid = argi.toInt();
-      if (formnetworkid != pGC->networkid) {
+      if (formnetworkid != pUserData->networkid) {
         commit_required = true;
-        pGC->networkid = formnetworkid;
+        pUserData->networkid = formnetworkid;
       }
     }
     else if (argNamei == "nodeid") {
       uint8_t formnodeid = argi.toInt();
-      if (formnodeid != pGC->nodeid) {
+      if (formnodeid != pUserData->nodeid) {
         commit_required = true;
-        pGC->networkid = formnodeid;
+        pUserData->networkid = formnodeid;
       }
     }
     else if (argNamei == "encryptkey") {
       const char *enckey = argi.c_str();
       if (strcmp(enckey, HiddenString) != 0){
-          if (strcmp(enckey, pGC->encryptkey) != 0) {
+          if (strcmp(enckey, pUserData->encryptkey) != 0) {
               commit_required = true;
-              strcpy(pGC->encryptkey, enckey);
+              strcpy(pUserData->encryptkey, enckey);
               Serial.println("encryptkey changed");
           }
-      }
-    }
-    else if (argNamei == "rfmapname") {
-      const char *apname = argi.c_str();
-      if (strcmp(apname, pGC->rfmapname) != 0) {
-        commit_required = true;
-        strcpy(pGC->rfmapname, apname);
       }
     }
     else if (argNamei == "powerlevel") {
       uint8_t powlev = argi.toInt();
       if (powlev != GC_POWER_LEVEL) {
         commit_required = true;
-        pGC->powerlevel = (GC_IS_RFM69HCW << 7) | powlev;
+        pUserData->powerlevel = (GC_IS_RFM69HCW << 7) | powlev;
       }
     }
     else if (argNamei == "rfm69hcw") {
       uint8_t hcw = argi.toInt();
       if (hcw != GC_IS_RFM69HCW) {
         commit_required = true;
-        pGC->powerlevel = (hcw << 7) | GC_POWER_LEVEL;
+        pUserData->powerlevel = (hcw << 7) | GC_POWER_LEVEL;
       }
     }
     else if (argNamei == "rfmfrequency") {
       uint8_t freq = argi.toInt();
-      if (freq != pGC->rfmfrequency) {
+      if (freq != pUserData->rfmfrequency) {
         commit_required = true;
-        pGC->rfmfrequency = freq;
-      }
-    }
-    else if (argNamei == "olduser") {
-        const char *olduser = argi.c_str();
-        if (strcmp(olduser, HiddenString) != 0){
-            if (strcmp(olduser, pGC->updateUser) == 0) {
-                oldUserSeen = true;
-            }
-        }
-    }
-    else if (argNamei == "oldpassword") {
-        const char *oldpw = argi.c_str();
-        if (strcmp(oldpw, HiddenString) != 0){
-            if (strcmp(oldpw, pGC->updatePassword) == 0) {
-                oldPasswordSeen = true;
-            }
-        }
-    }
-    else if (argNamei == "newuser") {
-      const char *newusr = argi.c_str();
-        if ((strcmp(newusr, HiddenString) != 0) && oldPasswordSeen && oldUserSeen){
-            if (strcmp(newusr, pGC->updatePassword) != 0) {
-                commit_required = true;
-                strcpy(pGC->updateUser, newusr);
-                Serial.println("user changed");
-            }
-        }
-    }
-    else if (argNamei == "newpassword") {
-      const char *newpw = argi.c_str();
-        if ((strcmp(newpw, HiddenString) != 0) && oldPasswordSeen && oldUserSeen){
-            if (strcmp(newpw, pGC->updatePassword) != 0) {
-                commit_required = true;
-                strcpy(pGC->updatePassword, newpw);
-                Serial.println("password changed");
-            }
-        }
-    }
-    else if (argNamei == "mdnsname") {
-      const char *mdns = argi.c_str();
-      if (strcmp(mdns, pGC->mdnsname) != 0) {
-        commit_required = true;
-        strcpy(pGC->mdnsname, mdns);
+        pUserData->rfmfrequency = freq;
       }
     }
   }
   handleRoot();
-  if (commit_required) {
-    pGC->checksum = gc_checksum();
-    EEPROM.commit();
-    ESP.reset();
-    delay(1000);
-  }
-}
-
-void handleconfiguregwmqtt()
-{
-  size_t formFinal_len = strlen_P(CONFIGUREGWMQTT_HTML) + sizeof(*pGC);
-  char *formFinal = (char *)malloc(formFinal_len);
-  if (formFinal == NULL) {}
-  #if showKeysInWeb == true
-    snprintf_P(formFinal, formFinal_len, CONFIGUREGWMQTT_HTML,
-        pGC->mqttbroker, pGC->mqttclientname, pGC->mqttUser, pGC->mqttPassword, HiddenString
-        );
-  #else
-    snprintf_P(formFinal, formFinal_len, CONFIGUREGWMQTT_HTML,
-        HiddenString, pGC->mqttclientname,  HiddenString, HiddenString, HiddenString
-        );
-  #endif
-  webServer.send(200, "text/html", formFinal);
-  free(formFinal);
-}
-
-void handleconfiguregwmqttWrite()
-{
-  bool commit_required = false;
-  String argi, argNamei;
-
-  for (uint8_t i=0; i<webServer.args(); i++) {
-    Serial.print(webServer.argName(i));
-    Serial.print('=');
-    Serial.println(webServer.arg(i));
-    argi = webServer.arg(i);
-    argNamei = webServer.argName(i);
-    if (argNamei == "mqttbroker") {
-        const char *broker = argi.c_str();
-        if (strcmp(broker, HiddenString) != 0){
-            if (strcmp(broker, pGC->mqttbroker) != 0) {
-                commit_required = true;
-                strcpy(pGC->mqttbroker, broker);
-                //Wenn der Key geaendert wird dann loeschen wir auch den encrypt key
-                #if showKeysInWeb == false
-                    strcpy_P(pGC->encryptkey, ENCRYPTKEY);
-                #endif
-            }
-        }
-    }
-    else if (argNamei == "mqttclientname") {
-      const char *client = argi.c_str();
-      if (strcmp(client, pGC->mqttclientname) != 0) {
-        commit_required = true;
-        strcpy(pGC->mqttclientname, client);
-      }
-    }
-    else if (argNamei == "mqttclientpassword"){
-        const char *pw = argi.c_str();
-        if (strcmp(pw, HiddenString) != 0){
-            if (strcmp(pw, pGC->mqttPassword) != 0){
-              commit_required = true;
-              strcpy(pGC->mqttPassword, pw);
-            }
-        }
-    }
-    else if (argNamei == "mqttclientuser"){
-        const char *user = argi.c_str();
-        if (strcmp(user, HiddenString) != 0){
-            if (strcmp(user, pGC->mqttUser) != 0){
-              commit_required = true;
-              strcpy(pGC->mqttUser, user);
-            }
-        }
-    }
-  }
-  
-  handleRoot();
-  if (commit_required) {
-    pGC->checksum = gc_checksum();
-    EEPROM.commit();
-    ESP.reset();
-    delay(1000);
-  }
-}
-
-void handleconfigurenode(){
-  
-  for (uint8_t i=0; i<webServer.args(); i++) {
-      Serial.print(webServer.argName(i));
-      Serial.print('=');
-      Serial.println(webServer.arg(i));
-  }
-  webServer.send(200, "text/html", SELECTNODE);
-  
+// Todo 
+//  if (commit_required) {
+//    pUserData->checksum = gc_checksum();
+//    EEPROM.commit();
+//    ESP.reset();
+//    delay(1000);
+//  }
 }
 
 void handleconfigurenodeWrite(){
@@ -1335,7 +969,7 @@ void handleconfigurenodeWrite(){
   Serial.println("built topic");
   char temptopic[30]="rfmOut/";
   char tempNetworkId[5];
-  itoa(pGC->networkid, tempNetworkId, 10);
+  itoa(pUserData->networkid, tempNetworkId, 10);
   strncat(temptopic, tempNetworkId, 5);
   strcat(temptopic, "/");
   strncat(temptopic, tempNodeId, 5);
@@ -1370,7 +1004,7 @@ void handleconfigurenodeWrite(){
       strcat(tempTopic, "/1");
       
       //setze das RFM69 auf standard Settings
-      radio.initialize(pGC->rfmfrequency, pGC->nodeid, NETWORKID);
+      radio.initialize(pUserData->rfmfrequency, pUserData->nodeid, NETWORKID);
       char tempEncryptkey[16+1];
       strcpy_P(tempEncryptkey, ENCRYPTKEY);
       radio.encrypt(tempEncryptkey);
@@ -1384,24 +1018,24 @@ void handleconfigurenodeWrite(){
           strcat(tempPayload, "{");
       }
       strcat(tempPayload, "\"key_1\":\"");
-      strncat(tempPayload, pGC->encryptkey, 16);
+      strncat(tempPayload, pUserData->encryptkey, 16);
       //strcat(tempPayload, "\"}");
       strcat(tempPayload,"\", \"w_28\":\"");
-      itoa(pGC->networkid,tempNetworkId,10);
+      itoa(pUserData->networkid,tempNetworkId,10);
       strncat(tempPayload, tempNetworkId, 16);
       strcat(tempPayload, "\"}");
       //sende die Nachricht
       callback(tempTopic, (byte*)tempPayload, strnlen(tempPayload, RF69_MAX_DATA_LEN));
 
       //setze das RFM auf den Normal Betrieb
-      radio.initialize(pGC->rfmfrequency, pGC->nodeid, pGC->networkid);
-      radio.encrypt(pGC->encryptkey);
+      radio.initialize(pUserData->rfmfrequency, pUserData->nodeid, pUserData->networkid);
+      radio.encrypt(pUserData->encryptkey);
       Serial.println("RFM is set to normal Mode");
   }else if (sendData){
       if (strncmp(tempNodeId, "", 5) != 0) {
           Serial.println("send message");
           strcat(jsonMessage, "}");
-          mqttClient.publish(temptopic, jsonMessage, true);
+          mqttpublish(temptopic, jsonMessage, true);
       }
   }
   
@@ -1409,41 +1043,12 @@ void handleconfigurenodeWrite(){
   
 } 
 
-void websock_setup(void) {
-  webServer.on("/", handleRoot);
-  webServer.on("/configGW", HTTP_GET, handleconfiguregw);
-  webServer.on("/configGWrfm69", HTTP_GET, handleconfiguregwrfm69);
-  webServer.on("/configGWrfm69", HTTP_POST, handleconfiguregwrfm69Write);
-  webServer.on("/configGWmqtt", HTTP_GET, handleconfiguregwmqtt);
-  webServer.on("/configGWmqtt", HTTP_POST, handleconfiguregwmqttWrite);
-  webServer.on("/configGWreset", HTTP_GET, handleconfiguregwreset);
-  webServer.on("/configGWnode", HTTP_GET, handleconfigurenode);
-  webServer.on("/configGWnode", HTTP_POST, handleconfigurenodeWrite);
-  webServer.onNotFound(handleNotFound);
-  webServer.begin();
-
-  webSocket.begin();
-  webSocket.onEvent(webSocketEvent);
-}
-
-// vvvvvvvvv ESP8266 Web OTA Updater vvvvvvvvvvv
-#include "ESP8266HTTPUpdateServer.h"
-ESP8266HTTPUpdateServer httpUpdater;
-
-void ota_setup() {
-  httpUpdater.setup(&webServer, "/updater", pGC->updateUser, pGC->updatePassword);//sw
-}
-
-// ^^^^^^^^^ ESP8266 Web OTA Updater ^^^^^^^^^^^
 
 // ^^^^^^^^^ ESP8266 web sockets ^^^^^^^^^^^
 
 void updateClients(uint8_t senderId, int32_t rssi, const char *message);
 
 // vvvvvvvvv RFM69 vvvvvvvvvvv
-#include <RFM69.h>                //https://www.github.com/lowpowerlab/rfm69
-#include <SPI.h>
-
 #if defined(__AVR_ATmega168__) || defined(__AVR_ATmega328P__) || defined(__AVR_ATmega88) || defined(__AVR_ATmega8__) || defined(__AVR_ATmega88__)
 #define RFM69_CS      10
 #define RFM69_IRQ     2
@@ -1479,7 +1084,8 @@ void radio_setup(void) {
   static const char PROGMEM JSONtemplate[] =
     R"({"msgType":"config","freq":%d,"rfm69hcw":%d,"netid":%d,"power":%d})";
   char payload[128];
-
+  
+  Serial.print("Class and Pins...");
   radio = RFM69(RFM69_CS, RFM69_IRQ, GC_IS_RFM69HCW, RFM69_IRQN);
   // Hard Reset the RFM module
   pinMode(15, SPECIAL);  ///< GPIO15 Init SCK
@@ -1488,14 +1094,15 @@ void radio_setup(void) {
   delay(100);
   digitalWrite(RFM69_RST, LOW);
   delay(100);
-
+  
+  Serial.print("Init...");
   // Initialize radio
-  if (radio.initialize(pGC->rfmfrequency, pGC->nodeid, pGC->networkid)){
-	  Serial.println(" -> OK");	  //sw
+  if (radio.initialize(pUserData->rfmfrequency, pUserData->nodeid, pUserData->networkid)){
+	  Serial.println(" -> OK");	  
 	  }
   else {
-	  Serial.println(" -> FAIL!");//sw
-	  mqttClient.publish("rfmIn", "RFM Setup Failed"); //sw
+	  Serial.println(" -> FAIL!");
+	  mqttpublish("rfmIn", "RFM Setup Failed"); 
 	  }
 	
   if (GC_IS_RFM69HCW) {
@@ -1503,12 +1110,12 @@ void radio_setup(void) {
   }
   radio.setPowerLevel(GC_POWER_LEVEL); // power output ranges from 0 (5dBm) to 31 (20dBm)
 
-  if (pGC->encryptkey[0] != '\0') radio.encrypt(pGC->encryptkey);
+  if (pUserData->encryptkey[0] != '\0') radio.encrypt(pUserData->encryptkey);
 
   pinMode(LED, OUTPUT);
 
   Serial.print("\nListening at ");
-  switch (pGC->rfmfrequency) {
+  switch (pUserData->rfmfrequency) {
     case RF69_433MHZ:
       freq = 433;
       break;
@@ -1526,10 +1133,10 @@ void radio_setup(void) {
       break;
   }
   Serial.print(freq); Serial.print(' ');
-  Serial.print(pGC->rfmfrequency); Serial.println(" MHz");
+  Serial.print(pUserData->rfmfrequency); Serial.println(" MHz");
 
   size_t len = snprintf_P(RadioConfig, sizeof(RadioConfig), JSONtemplate,
-      freq, GC_IS_RFM69HCW, pGC->networkid, GC_POWER_LEVEL);
+      freq, GC_IS_RFM69HCW, pUserData->networkid, GC_POWER_LEVEL);
   if (len >= sizeof(RadioConfig)) {
     Serial.println("\n\n*** RFM69 config truncated ***\n");
   }
@@ -1772,7 +1379,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
             }
         }
         //subscribe the topic of the Node to get retained messages from Broker -> Node (sleeping Nodes) sw
-        snprintf(NodeBackup_topic, sizeof(NodeBackup_topic), "rfmBackup/%d/%d/%s", pGC->networkid, nodeAdress, hash); //Broker -> Node
+        snprintf(NodeBackup_topic, sizeof(NodeBackup_topic), "rfmBackup/%d/%d/%s", pUserData->networkid, nodeAdress, hash); //Broker -> Node
     }
  
             
@@ -1796,7 +1403,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
                 itoa(nodeAdress, temp2, 10);
                 strncat(temp, temp2, 4);
                 strncat(temp, "\"",3);
-                mqttClient.publish("txInfo", temp);/*
+                mqttpublish("txInfo", temp);/*
             }else{
                 Serial.println("Msg sended to Node");
                 if (strncmp(topic, "rfmBackup", 9) != 0) {
@@ -1815,11 +1422,11 @@ void callback(char* topic, byte* payload, unsigned int length) {
             if (strncmp(topic, "rfmBackup", 9) != 0) {
                 //send 0 Byte retained Message to delete retained messages
                 Serial.println("Delete orig Msg");
-                mqttClient.publish(topic, "", true);
+                mqttpublish(topic, "", true);
                 //send orig message to backup topic only if its no config reg
                 if ((strncmp(PayloadBck, "{\"p_", 4) == 0)||(strncmp(PayloadBck , "{\"d",3) == 0)||(strncmp(PayloadBck , "{\"t",3) == 0)){
                     Serial.println("Store orig Msg");
-                    mqttClient.publish(NodeBackup_topic, PayloadBck, true);
+                    mqttpublish(NodeBackup_topic, PayloadBck, true);
                 }
             }
         }
@@ -1832,45 +1439,6 @@ void callback(char* topic, byte* payload, unsigned int length) {
     }else{
         Serial.println(" -> We did nothing."); 
     }
-}
-
-void mqtt_setup() {
-  mqttClient.setServer(pGC->mqttbroker, 1883);
-  mqttClient.setCallback(callback);
-}
-
-void reconnect() {
-  static const char PROGMEM RFMOUT_TOPIC[] = "rfmOut/%d/#"; //Broker -> Node
-  char sub_topic[32];
-
-  // Loop until we're reconnected
-  //while (!mqttClient.connected()) {//sw
-    Serial.print("Attempting MQTT connection...");
-    // Attempt to connect
-    if (mqttClient.connect(pGC->mqttclientname, pGC->mqttUser, pGC->mqttPassword)) {
-      Serial.println("connected");
-      delay(1000);
-      // Once connected, publish an announcement...
-      mqttClient.publish("rfmIn", "Gateway connected");
-      // ... and resubscribe
-      snprintf_P(sub_topic, sizeof(sub_topic), RFMOUT_TOPIC, pGC->networkid);
-      mqttClient.subscribe(sub_topic);
-      Serial.printf("subscribe topic [%s]\r\n", sub_topic);
-    } else {
-      Serial.print("failed, rc=");
-      Serial.print(mqttClient.state());
-      Serial.println(" try again in 2 seconds");
-      // Wait 2 seconds before retrying
-      delay(1000);
-    }
-  //}//sw
-}
-
-void mqtt_loop() {
-  if (!mqttClient.connected()) {
-    reconnect();
-  }
-  mqttClient.loop();
 }
 
 // ^^^^^^^^^ MQTT ^^^^^^^^^^^
@@ -1986,12 +1554,12 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
     //Serial.println("built rxTopic");
     char nodeRx_topic[32];
             //subscribe the topic of the Node to get retained messages from Broker -> Node (sleeping Nodes) sw
-            snprintf(nodeRx_topic, sizeof(nodeRx_topic), "rfmOut/%d/%d/#", pGC->networkid, senderId); //Broker -> Node
+            snprintf(nodeRx_topic, sizeof(nodeRx_topic), "rfmOut/%d/%d/#", pUserData->networkid, senderId); //Broker -> Node
 
     //Serial.println("built backupTopic");
     char NodeBackup_topic_temp[32];
             //subscribe the topic of the Node to get retained messages from Broker -> Node (sleeping Nodes) sw
-            snprintf(NodeBackup_topic_temp, sizeof(NodeBackup_topic_temp), "rfmBackup/%d/%d/#", pGC->networkid, senderId); //Broker -> Node
+            snprintf(NodeBackup_topic_temp, sizeof(NodeBackup_topic_temp), "rfmBackup/%d/%d/#", pUserData->networkid, senderId); //Broker -> Node
             
     uint8_t nodeAdress = getNodeId(nodeRx_topic);
     uint8_t varNumber = nodeAdress / 32;
@@ -2014,7 +1582,7 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
         Serial.println("Command 17 subscribe on:");
         Serial.println(nodeRx_topic);
         reachableNode[varNumber] |= (1<<bitNumber);
-        mqttClient.subscribe(nodeRx_topic);
+        mqttSubscribe(nodeRx_topic);
         command = true;
     }else if (message[0] == 18){
         //mqttClient.publish("rfmIn", "unsubscribed Node");
@@ -2023,8 +1591,8 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
         Serial.println(nodeRx_topic);    
         Serial.println(NodeBackup_topic_temp); 
         reachableNode[varNumber] &= ~(1<<bitNumber);
-        mqttClient.unsubscribe(nodeRx_topic);
-        mqttClient.unsubscribe(NodeBackup_topic_temp);
+        mqttUnsubscribe(nodeRx_topic);
+        mqttUnsubscribe(NodeBackup_topic_temp);
         command = true;
     }else if (message[0] == 19){
         //subsrcibe node to Backup topic to get old Messages on Node Startup (Node sends 20 on startup, Gateway puts sended messages from nodeRx_topic to NodeBackup_topic_temp)
@@ -2032,7 +1600,7 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
         Serial.println(NodeBackup_topic_temp);
         //Serial.println(nodeRx_topic);
         reachableNode[varNumber] |= (1<<bitNumber);
-        mqttClient.subscribe(NodeBackup_topic_temp);
+        mqttSubscribe(NodeBackup_topic_temp);
         //mqttClient.subscribe(nodeRx_topic);
         command = true;
     }else if (message[0] == 20){
@@ -2041,8 +1609,8 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
         Serial.println(nodeRx_topic);
         Serial.println(NodeBackup_topic_temp);
         reachableNode[varNumber] |= (1<<bitNumber);
-        mqttClient.unsubscribe(NodeBackup_topic_temp);
-        mqttClient.unsubscribe(nodeRx_topic);
+        mqttUnsubscribe(NodeBackup_topic_temp);
+        mqttUnsubscribe(nodeRx_topic);
         command = true;
     }
     else if (sendMessage){
@@ -2093,13 +1661,11 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
  
             //mqttClient.publish("debug", "E");
             // mqtt publish the same message
-            size_t len = snprintf(topic, sizeof(topic), "rfmIn/%d/%d/%s", pGC->networkid, senderId, hash); //Node -> Broker //sw
+            size_t len = snprintf(topic, sizeof(topic), "rfmIn/%d/%d/%s", pUserData->networkid, senderId, hash); //Node -> Broker 
             if (len >= sizeof(topic)) {
                 Serial.println("\n*** MQTT topic truncated ***\n");
             }               
-            if (!mqttClient.publish(topic, pubPayload, true)) {
-                Serial.println("\n*** mqtt publish failed ***\n");
-            }      
+            mqttpublish(topic, pubPayload, true);
         }     
     }else{
         Serial.println("*** Message dublicated! -> discarded! ***");
@@ -2115,8 +1681,8 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
     snprintf_P(infoPayload, sizeof(infoPayload), JSONtemplateInfo,
       ns->recvMessageCount, ns->recvMessageMissing,
       ns->recvMessageDuplicate, rssi);
-    snprintf(infoTopic, sizeof(infoTopic), "rfmIn/%d/%d/rxInfo", pGC->networkid, senderId); //Node -> Broker //sw   
-    mqttClient.publish(infoTopic, infoPayload, true);
+    snprintf(infoTopic, sizeof(infoTopic), "rfmIn/%d/%d/rxInfo", pUserData->networkid, senderId); //Node -> Broker    
+    mqttpublish(infoTopic, infoPayload, true);
     
     snprintf_P(infoPayload, sizeof(infoPayload), JSONtemplateWeb,
       ns->recvMessageCount, ns->recvMessageMissing,
@@ -2151,47 +1717,23 @@ void updateClients(uint8_t senderId, int32_t rssi, const char *message)
 void setup() {
 	Serial.begin(SERIAL_BAUD);
 	Serial.println("\nRFM69 WiFi Gateway");
+	Serial.println("setup server");
 
-	Serial.println(ESP.getResetReason());
-
-	// Adafruit Huzzah has an LED on GPIO0 with negative logic.
-	// Turn if off.
-	pinMode(0, OUTPUT);
-	digitalWrite(0, HIGH);
-  
 	pinMode(Led_user, OUTPUT);
-	digitalWrite(Led_user, 0);
+	digitalWrite(Led_user, LOW);
   
-  
-	/*
-	#define testpin 16
-	pinMode(testpin, OUTPUT);
-	digitalWrite(testpin, 1);
-	delay(100);
-	digitalWrite(testpin, 0);
-	delay(100);
-	digitalWrite(testpin, 1);
-	delay(100);
-	digitalWrite(testpin, 0);
-	*/
-  
-	Serial.println("eeprom_setup"); //sw
-	eeprom_setup();
-	Serial.println("wifi_setup");//sw
-	wifi_setup();
-	Serial.println("mdns_setup");//sw
-	mdns_setup();
-	Serial.println("mqtt_setup");//sw
-	mqtt_setup();
-	Serial.println("ota_setup");//sw
-	ota_setup();
-	Serial.println("websock_setup");//sw
-	websock_setup();
-	Serial.print("radio_setup");//sw
+    UserEEPromSetupCallback = UserEEPromSetup;
+    UserEEPromChecksumCallback = UserEEPromChecksum;
+    UserEEPromAdditioanlSize = sizeof(userEEProm);
+
+    setup_server();
+    pUserData = (userEEProm_mt *)endOfEepromServerData;
+    
+	Serial.print("radio_setup...");
 	radio_setup();
-	digitalWrite(Led_user, 1);//sw
-	delay(500);//sw
-	digitalWrite(Led_user, 0);//sw
+	digitalWrite(Led_user, HIGH);
+	delay(500);
+	digitalWrite(Led_user, LOW);
   
     reachableNode[0] = 0xFFFFFFFF;
     reachableNode[1] = 0xFFFFFFFF;
@@ -2202,32 +1744,15 @@ void setup() {
     reachableNode[6] = 0xFFFFFFFF;
     reachableNode[7] = 0xFFFFFFFF;
     
-    snprintf(GatewayConsole_topic, sizeof(GatewayConsole_topic), "rfmConsole/%d/%d", pGC->networkid, pGC->nodeid);
+    snprintf(GatewayConsole_topic, sizeof(GatewayConsole_topic), "rfmConsole/%d/%d", pUserData->networkid, pUserData->nodeid);
     
-	//GPF12 = 48;
-	//GPF13 = 48;
-	//GPF14 = 48;
-	//Serial.print("GPF12: ");
-	//Serial.print(GPF12);
-	//Serial.print(" GPF13: ");
-	//Serial.print(GPF13);
-	//Serial.print(" GPF14: ");
-	//Serial.print(GPF14);
-	//Serial.print(" GPF15: ");
-	//Serial.print(GPF15);
-	//Serial.println("");
-	Serial.println("setup_finished");//sw
+	Serial.println("setup_finished");
 }
 
 void loop() {
-  //Serial.println("radio_loop");
+
   radio_loop();
-  //Serial.println("mqtt_loop");
-  mqtt_loop();
-  //Serial.println("webSocket");
-  webSocket.loop();
-  //Serial.println("webServer");
-  webServer.handleClient();
+  loop_server();
 
 }
 
