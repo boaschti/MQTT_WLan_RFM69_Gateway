@@ -41,31 +41,25 @@
 
 
 #define userpage_existing
+#define userpage2_existing
 
 //#define AllowAcessPoint         // opens a acessPoint if saved Wlan is not reachable
 //#define WiFiNotRequired         // if there is no connection -> return from setup_server() (and run main loop) or restart esp until connection
 //#define showKeysInWeb true      // shows keys in WEB page (for debug! not recommendet!!)
 
-#define usersubscribe_existing  //if a UserSubscribe() exists. Else the Server will connect automatically to set Topic
+//#define usersubscribe_existing  //if a UserSubscribe() exists. Else the Server will connect automatically to set Topic
 #define MQTTBrokerChanged_existing  // if a MQTTBrokerChanged() exists you can do sth if Broker is changed via web
 
-#define DeviceName "RF Gateway"
+#define DeviceName "RF_Gateway"
+#define UserPageName "RF Module"
+#define MqttBrokerChangedMsg "Set RFM69 encrypt key again!"
 
-#include "C:\Users\sebas\Documents\ESP8266-Server\ESPServerDefines.h"
 #include "C:\Users\sebas\Documents\ESP8266-Server\ESPServer.h"
 
 #ifdef usersubscribe_existing
 void UserSubscribe(){
-    mqttSubscribeStateTopic();
 }
 #endif // usersubscribe_existing
-
-#ifdef MQTTBrokerChanged_existing
-void MQTTBrokerChanged(){
-    return;  
-}
-#endif // MQTTBrokerChanged_existing
-
 
 
 #ifdef userpage_existing
@@ -166,6 +160,16 @@ uint32_t UserEEPromChecksum(uint32_t checksum, void* eepromPtr) {
 
 
 char GatewayConsole_topic[20];
+
+#ifdef MQTTBrokerChanged_existing
+void MQTTBrokerChanged(){
+    //Wenn der Key geaendert wird dann loeschen wir auch den encrypt key
+    #if showKeysInWeb == false
+        strcpy_P(pUserData->encryptkey, ENCRYPTKEY);
+        SaveEEpromData();
+    #endif    
+}
+#endif // MQTTBrokerChanged_existing
 
 void myPrintln(char *msg){
   
@@ -277,7 +281,7 @@ static const char PROGMEM CONFIGUREGWRFM69_HTML[] = R"rawliteral(
 </head>
 <body>
   <h3>RFM69 Gateway Configuration</h3>
-  <form method='POST' action='/configGWrfm69' enctype='multipart/form-data'>
+  <form method='POST' action='/configUserPage' enctype='multipart/form-data'>
     <label>RFM69 Network ID</label>
     <input type='number' name='networkid' value="%d" min="1" max="255" size="3"><br>
     <label>RFM69 Node ID</label>
@@ -298,25 +302,8 @@ static const char PROGMEM CONFIGUREGWRFM69_HTML[] = R"rawliteral(
     <input type='radio' name='rfm69hcw' id="hcw" value="0" %s> False<br>
     <p><input type='submit' value='Save changes'>
   </form>
-  <p><a href="/configGW"><button type="button">Cancel</button></a><a href="/configGWreset"><button type="button">Factory Reset</button></a>
-</body>
-</html>
-)rawliteral";
-
-static const char PROGMEM SELECTNODE[] = R"rawliteral(
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name = 'viewport' content = 'width = device-width, initial-scale = 1.0, maximum-scale = 1.0, user-scalable=0'>
-  <title>RFM69 Node Configuration</title>
-  <style>
-    'body { background-color: #808080; font-family: Arial, Helvetica, Sans-Serif; Color: #000000; }'
-  </style>
-</head>
-<body>
     <h3>RFM69 Node Configuration</h3>
-    <p><a href="/"><button type="button">Home</button></a>
-        <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+        <form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
             <label>nodeId &nbsp</label>
             <input type='number' name='nodeid' min='1' max='253' size='3'>
             &nbsp &nbsp &nbsp &nbsp
@@ -325,7 +312,7 @@ static const char PROGMEM SELECTNODE[] = R"rawliteral(
             &nbsp &nbsp &nbsp &nbsp
             <input type='submit' value='set Node Id to edit'><br>
         </form>
-        <form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+        <form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
             <input type='hidden' name='setupNewNode'>
             <p>
             Setup new nodes:
@@ -334,7 +321,8 @@ static const char PROGMEM SELECTNODE[] = R"rawliteral(
             <input type='number' name='w_27' min='1' max='253' size='3'>
             &nbsp &nbsp &nbsp &nbsp
             <input type='submit' value='setup new node'><br>
-        </form>
+        </form>  
+    <p><a href="/"><button type="button">Home</button></a>
 </body>
 </html>
 )rawliteral";
@@ -352,7 +340,7 @@ static const char PROGMEM CONFIGURENODE[] = R"rawliteral(
 <body>
 <h3>RFM69 Node Configuration</h3>
 <p><a href="/"><button type="button">Home</button></a>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <label>nodeId &nbsp</label>
 <input type='number' name='nodeid' min='1' max='253' size='3'>
 &nbsp &nbsp &nbsp &nbsp
@@ -361,11 +349,11 @@ request Data from Node:
 &nbsp &nbsp &nbsp &nbsp
 <input type='submit' value='set Node Id to edit'><br>
 </form>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='led_2' value='blink'>
 <input type='submit' value='test'><br>
 </form>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_0' value='255'>
 <input type='submit' value='reset Node'><br>
 </form>
@@ -385,7 +373,7 @@ miniNode, maxiNode  -ArduinoSPS Board-
 <td> count &nbsp &nbsp </td>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_0' value='0'>
 <td> Pin0 -A1- &nbsp </td>
 <td> <input type='checkbox' name='w_0' value='1'> </td>
@@ -400,7 +388,7 @@ miniNode, maxiNode  -ArduinoSPS Board-
 </form>
 </tr> 
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_1' value='0'>
 <td> Pin1 -A2- &nbsp </td>
 <td> <input type='checkbox' name='w_1' value='1'> </td>
@@ -415,7 +403,7 @@ miniNode, maxiNode  -ArduinoSPS Board-
 </form>
 </tr> 
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_2' value='0'>
 <td> Pin2 -A3- &nbsp </td>
 <td> <input type='checkbox' name='w_2' value='1'> </td>
@@ -430,7 +418,7 @@ miniNode, maxiNode  -ArduinoSPS Board-
 </form>
 </tr> 
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_3' value='0'>
 <td> Pin3 -A4- &nbsp </td>
 <td> <input type='checkbox' name='w_3' value='1'> </td>
@@ -445,7 +433,7 @@ miniNode, maxiNode  -ArduinoSPS Board-
 </form>
 </tr> 
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_4' value='0'>
 <td> Pin4 -A5- &nbsp </td>
 <td> <input type='checkbox' name='w_4' value='1'> </td>
@@ -460,7 +448,7 @@ miniNode, maxiNode  -ArduinoSPS Board-
 </form>
 </tr> 
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_5' value='0'>
 <td> Pin5 -D6- &nbsp </td>
 <td> <input type='checkbox' name='w_5' value='1'> </td>
@@ -475,7 +463,7 @@ miniNode, maxiNode  -ArduinoSPS Board-
 </form>
 </tr> 
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_6' value='0'>
 <td> Pin6 -D7- &nbsp </td>
 <td> <input type='checkbox' name='w_6' value='1'> </td>
@@ -493,7 +481,7 @@ miniNode, maxiNode  -ArduinoSPS Board-
 <td> ArduinoSPS Board: &nbsp </td>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_7' value='0'>
 <td> D8 &nbsp </td>
 <td> <input type='checkbox' name='w_7' value='1'> </td>
@@ -508,7 +496,7 @@ miniNode, maxiNode  -ArduinoSPS Board-
 </form>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_8' value='0'>
 <td> D9 &nbsp </td>
 <td> <input type='checkbox' name='w_8' value='1'> </td>
@@ -538,7 +526,7 @@ Analog:
 <td> *4 &nbsp &nbsp </td>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_13' value='0'>
 <td> Pin2 (A5) &nbsp </td>
 <td> <input type="checkbox" name="w_13" value="1"> </td>
@@ -552,7 +540,7 @@ Analog:
 </form>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_12' value='0'>
 <td> Pin3 (A4)&nbsp </td>
 <td> <input type="checkbox" name="w_12" value="1"> </td>
@@ -566,7 +554,7 @@ Analog:
 </form>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_10' value='0'>
 <td> Pin5 (A2)&nbsp </td>
 <td> <input type="checkbox" name="w_10" value="1"> </td>
@@ -580,7 +568,7 @@ Analog:
 </form>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_11' value='0'>
 <td> Pin6 (A3)&nbsp </td>
 <td> <input type="checkbox" name="w_11" value="1"> </td>
@@ -597,7 +585,7 @@ Analog:
 <td> ArduinoSPS Board: &nbsp </td>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_9' value='0'>
 <td> A1 &nbsp </td>
 <td> <input type='checkbox' name='w_9' value='1'> </td>
@@ -607,12 +595,11 @@ Analog:
 <td> <input type='checkbox' name='w_9' value='16'> </td>
 <td> <input type='checkbox' name='w_9' value='32'> </td>
 <td> <input type='checkbox' name='w_9' value='64'> </td>
-<td> <input type='checkbox' name='w_9' value='128'> </td>
 <td> <input type='submit' value='save'></td>
 </form>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_14' value='0'>
 <td> A6 &nbsp </td>
 <td> <input type='checkbox' name='w_14' value='1'> </td>
@@ -622,7 +609,6 @@ Analog:
 <td> <input type='checkbox' name='w_14' value='16'> </td>
 <td> <input type='checkbox' name='w_14' value='32'> </td>
 <td> <input type='checkbox' name='w_14' value='64'> </td>
-<td> <input type='checkbox' name='w_14' value='128'> </td>
 <td> <input type='submit' value='save'></td>
 </form>
 </tr>
@@ -639,7 +625,7 @@ digitalSensors:
 <td> debounceLong &nbsp &nbsp </td>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_15' value='0'>
 <td> &nbsp &nbsp </td>
 <td> <input type="checkbox" name="w_15" value="1"> </td>
@@ -663,7 +649,7 @@ digitalOut:
 <td> ssd1306_128x64 &nbsp &nbsp </td>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_16' value='0'>
 <td> &nbsp &nbsp  </td>
 <td> <input type="checkbox" name="w_16" value="1"> </td>
@@ -684,7 +670,7 @@ chipSetup:
 <td> extCrystal &nbsp &nbsp </td>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_19' value='0'>
 <td> &nbsp &nbsp  </td>
 <td> <input type="checkbox" name="w_19" value="1"> </td>
@@ -708,7 +694,7 @@ nodeControll:
 <td> DisplayLongOn &nbsp &nbsp </td>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_20' value='0'>
 <td> &nbsp &nbsp  </td>
 <td> <input type="checkbox" name="w_20" value="1"> </td>
@@ -727,7 +713,7 @@ nodeControll:
 <table>
 <tbody>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_21' value='0'>
 <td> sleepTimeMulti &nbsp &nbsp </td>
 <td> <input type="text" name="w_21" id="value"> </td>
@@ -736,7 +722,7 @@ nodeControll:
 </form>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_22' value='0'>
 <td> sleepTime 8s &nbsp &nbsp </td>
 <td> <input type="text" name="w_22" id="value"> </td>
@@ -745,7 +731,7 @@ nodeControll:
 </form>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_23' value='0'>
 <td> watchdogTimeout 5s &nbsp &nbsp </td>
 <td> <input type="text" name="w_23" id="value"> </td>
@@ -753,7 +739,7 @@ nodeControll:
 </form>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_24' value='0'>
 <td> watchdogDelay 5s &nbsp &nbsp </td>
 <td> <input type="text" name="w_24" id="value"> </td>
@@ -761,7 +747,7 @@ nodeControll:
 </form>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_26' value='0'>
 <td> contrast &nbsp &nbsp </td>
 <td> <input type="text" name="w_26" id="value"> </td>
@@ -769,7 +755,7 @@ nodeControll:
 </form>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_27' value='0'>
 <td> nodeId &nbsp &nbsp </td>
 <td> <input type="text" name="w_27" id="value"> </td>
@@ -777,7 +763,7 @@ nodeControll:
 </form>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_28' value='0'>
 <td> networkId &nbsp &nbsp </td>
 <td> <input type="text" name="w_28" id="value"> </td>
@@ -785,7 +771,7 @@ nodeControll:
 </form>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_29' value='0'>
 <td> gatewayId &nbsp &nbsp </td>
 <td> <input type="text" name="w_29" id="value"> </td>
@@ -793,7 +779,7 @@ nodeControll:
 </form>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='w_30' value='0'>
 <td> sensorDelay 10s &nbsp &nbsp </td>
 <td> <input type="text" name="w_30" id="value"> </td>
@@ -801,7 +787,7 @@ nodeControll:
 </form>
 </tr>
 <tr>
-<form method='POST' action='/configGWnode' enctype='multipart/form-data'>
+<form method='POST' action='/configUserPage2' enctype='multipart/form-data'>
 <input type='hidden' name='none' value='0'>
 <td> encryptKey (16 chars!)&nbsp &nbsp </td>
 <td> <input type="text" name="key_1" id="value" size="16" maxlength="16" minlenght="16"> </td>
@@ -818,15 +804,6 @@ nodeControll:
 
 #define SELECTED_FREQ(f)  ((pUserData->rfmfrequency==f)?"selected":"")
 
-
-//void handleconfigureUserWrite(){
-//    handleRoot();
-//}
-//void handleconfigureUser(){
-//    webServersend_P(USERPAGE_HTML);
-//}
-
-
 void handleconfigureUser()
 {
   size_t formFinal_len = strlen_P(CONFIGUREGWRFM69_HTML) + sizeof(*pUserData);
@@ -840,20 +817,19 @@ void handleconfigureUser()
           pUserData->networkid, pUserData->nodeid,  pUserData->encryptkey, GC_POWER_LEVEL,
           SELECTED_FREQ(RF69_315MHZ), SELECTED_FREQ(RF69_433MHZ),
           SELECTED_FREQ(RF69_868MHZ), SELECTED_FREQ(RF69_915MHZ),
-          (GC_IS_RFM69HCW)?"checked":"", (GC_IS_RFM69HCW)?"":"checked",
-          "blubb", "blubb", "blubb", "blubb"
+          (GC_IS_RFM69HCW)?"checked":"", (GC_IS_RFM69HCW)?"":"checked"
           );
   #else
       snprintf_P(formFinal, formFinal_len, CONFIGUREGWRFM69_HTML,
           pUserData->networkid, pUserData->nodeid, HiddenString, GC_POWER_LEVEL,
           SELECTED_FREQ(RF69_315MHZ), SELECTED_FREQ(RF69_433MHZ),
           SELECTED_FREQ(RF69_868MHZ), SELECTED_FREQ(RF69_915MHZ),
-          (GC_IS_RFM69HCW)?"checked":"", (GC_IS_RFM69HCW)?"":"checked",
-          "blubb", "blubb", HiddenString, HiddenString
+          (GC_IS_RFM69HCW)?"checked":"", (GC_IS_RFM69HCW)?"":"checked"
           );
   #endif
-  webServersend_P(USERPAGE_HTML);
-  free(formFinal);
+  
+  webServer.send(200, "text/html", formFinal);
+  free(formFinal);  
 }
 
 void handleconfigureUserWrite()
@@ -873,6 +849,7 @@ void handleconfigureUserWrite()
       uint8_t formnetworkid = argi.toInt();
       if (formnetworkid != pUserData->networkid) {
         commit_required = true;
+        Serial.println("NetworkId seen");
         pUserData->networkid = formnetworkid;
       }
     }
@@ -880,7 +857,7 @@ void handleconfigureUserWrite()
       uint8_t formnodeid = argi.toInt();
       if (formnodeid != pUserData->nodeid) {
         commit_required = true;
-        pUserData->networkid = formnodeid;
+        pUserData->nodeid = formnodeid;
       }
     }
     else if (argNamei == "encryptkey") {
@@ -915,17 +892,25 @@ void handleconfigureUserWrite()
       }
     }
   }
-  handleRoot();
-// Todo 
-//  if (commit_required) {
-//    pUserData->checksum = gc_checksum();
-//    EEPROM.commit();
-//    ESP.reset();
-//    delay(1000);
-//  }
+
+  if (commit_required) {
+    handleRoot();
+    Serial.println("save to EEProm");
+    SaveEEpromData();
+    Serial.println("Reset ESP");
+    ESP.reset();
+    delay(1000);
+  }else{
+    webServer.send(200, "text/html", CONFIGURENODE);
+  }
 }
 
-void handleconfigurenodeWrite(){
+
+void handleconfigureUser2(){
+}
+
+
+void handleconfigureUserWrite2(){
   String argi, argNamei;
   char tempValueChar[21];
   static char tempNodeId[5] = "";
@@ -1043,7 +1028,7 @@ void handleconfigurenodeWrite(){
   
 } 
 
-
+    
 // ^^^^^^^^^ ESP8266 web sockets ^^^^^^^^^^^
 
 void updateClients(uint8_t senderId, int32_t rssi, const char *message);
@@ -1730,8 +1715,8 @@ void setup() {
     pUserData = (userEEProm_mt *)endOfEepromServerData;
     
 	Serial.print("radio_setup...");
-	radio_setup();
 	digitalWrite(Led_user, HIGH);
+	radio_setup();
 	delay(500);
 	digitalWrite(Led_user, LOW);
   
